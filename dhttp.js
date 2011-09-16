@@ -118,11 +118,13 @@ server.on('request', function(req,res){
 		 res.writeHead(httpCode.ok, context.$setHeader);
 		 res.write(data);
 		 res.end();
+		 delete context;
 		});
 	   }
 	    else{//send 404 not found
 	      res.writeHead( httpCode.notFound );
 		  res.end();
+		  delete context;
 		}
 	  }
 	 //request url is found
@@ -152,12 +154,14 @@ server.on('request', function(req,res){
 		    res.writeHead( httpCode.ok, context.$setHeader);
                     res.write(data);
                     res.end();
+                    delete context;
                    });
                    }//end if isBinary
                    if(isBinary(config.root + url.parse(req.url).pathname)){
                     context.$setHeader['content-type'] = getMime(config.root+url.parse(req.url).pathname);
                     res.writeHead(httpCode.ok, context.$setHeader);
                     fs.createReadStream(config.root + url.parse(req.url).pathname).pipe(res);
+                    delete context;
                    }//end if isBinary
             }//end if isFile
 	   });//end fs stats
