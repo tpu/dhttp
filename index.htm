@@ -1,0 +1,50 @@
+<html>
+<!-- 
+template global vareables
+$get - url query string - разобранная строка запроса
+$var - global variables in template  - переменные видны во всем шаблоне
+$cookie - cookies - разобранный набор печенек
+$header - 
+$setHeader - variables to set http headers - принипает загаловки http
+$console function console.log - no comment
+$() function echo - no comment
+-->
+<head>
+<script src="jquery-1.6.2.js"></script>
+<script language="javascript">
+ $(document).ready(function(){
+ $('#a').click(function(){
+  $.ajax({
+   type: 'GET',
+   url: 'index.htm',
+   data: 'dhttp=j2h',
+   success: function(msg){ $('#body').html(msg);}
+  });
+ });
+});
+</script>
+</head>
+<title><?$('dhttp server')?></title>
+<body align="center" id="body">
+
+
+
+<img src="dhttp.png" />
+<!--set cookie-->
+<?if($cookie.user == undefined) $setHeader['set-cookie'] = 'user=j2h';?>
+<!--set global template variable -->
+<? $var.i = 'this j2h template';?>
+<!--set local variavle end concat global + local-->
+<p><? var i = 'runing with dhttp node.js module'; $($var.i +' '+ i)?></p>
+<a href="https://192.168.0.245:/?user=dhttp">press to read query variable</a>
+<!--print url param-->
+<p>GET Variables <?$($get.user != undefined ? $get.user : '')?></p>
+<!--print user param-->
+<p>User Variables <?$(path)?></p>
+<!--print cookies -->
+<p>Cookie Variables <?$($cookie.user != undefined ? $cookie.user : '')?></p>
+<a href="#" id="a">press to read ajax variable</a>
+<!--print ajax param-->
+<p><?$($get.dhttp != undefined ? $get.dhttp : '')?></p>
+</body>
+</html>
