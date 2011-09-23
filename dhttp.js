@@ -7,7 +7,7 @@ var query = require('querystring');
 var j2h   = require('./j2h/j2h').j2h;
 var path  = require('path');
 var util  = require('util');
-var events= require('events').EventEmitter, event = new events();
+var events= require('events').EventEmitter, event = new events(), run = new events();
 
  var mime = {
      html: 'text/html',
@@ -23,6 +23,7 @@ var events= require('events').EventEmitter, event = new events();
      bmp:  'image/bmp',
      swf:  'application/x-shokwave-flash',
      flv:  'application/x-shokwave-flash',
+     ico:  'image/x-icon',
  } 
 
  var binary = {
@@ -33,6 +34,7 @@ var events= require('events').EventEmitter, event = new events();
      bmp:  '.bmp',
      swf:  '.swf',
      flv:  '.flv',
+     ico:  '.ico',
  }
 
  var httpCode = {
@@ -67,6 +69,7 @@ return false;
 var noRunFiles = function(croot, noRun, fname){
   for(var i = 0; i < noRun.length; i++){
    if(croot+'/'+noRun[i] == fname) return true;
+   if(path.basename(croot+'/'+noRun[i]) == '*' && path.dirname(croot+'/'+noRun[i]) == path.dirname(fname)) return true;
  }
 return false;
 }
@@ -82,7 +85,6 @@ exports.dhttp = {
   createServer: function(config, userObject, callback){
    if((config.port == undefined) || (config.root == undefined) || (config.index == undefined))
    {console.log('one or more configuration variables is not defined'); return false;}
-   if(callback != undefined ) event.on('success', callback);
 
 //create http or https server
 var server = null;   
@@ -97,10 +99,7 @@ var server = null;
     default: server = http.createServer(); break;          
   }
 
-server.on('request', function(req,res){ 
- event.emit('success',url.parse(req.url,true).query, url.parse(req.url).pathname);
-
-//set global object and variables 
+function render(req,res){
  var context = new setContext();
     objConcat(context, userObject);
     context.$get = url.parse(req.url,true).query ;
@@ -113,17 +112,19 @@ server.on('request', function(req,res){
           if(!exist || noRunFiles(config.root, config.noRun, config.root+url.parse(req.url).pathname )){
 	   if(config.errFile != undefined){//send error file 	  
 	        context.$setHeader['content-type'] = getMime(config.root + config.errFile);
-                j2h.init(config.errFile, context);
-		j2h.run(config.showErr != undefined ? config.showErr : true, function(err,data){
+                j2h.init(config.root+'/'+config.errFile);
+		j2h.run(config.showErr != undefined ? config.showErr : true, context, function(err,data){
 		 res.writeHead(httpCode.ok, context.$setHeader);
 		 res.write(data);
 		 res.end();
+                 delete context;
 		});
 	   }
 	    else{//send 404 not found
 	      res.writeHead( httpCode.notFound );
 		  res.end();
-		}
+                 delete context;
+	    }
 	  }
 	 //request url is found
            else{
@@ -132,8 +133,8 @@ server.on('request', function(req,res){
 		  if(path.existsSync(config.root + url.parse(req.url).pathname + config.index)){
 		   if(!isBinary(config.root + url.parse(req.url).pathname + config.index)){
                    context.$setHeader['content-type'] = getMime(config.root+url.parse(req.url).pathname + config.index);
-                   j2h.init(config.root+url.parse(req.url).pathname + config.index, context);
-		   j2h.run(config.showErr != undefined ? config.showErr : true, function(err,data){
+                   j2h.init(config.root+url.parse(req.url).pathname + config.index );
+		   j2h.run(config.showErr != undefined ? config.showErr : true, context,function(err,data){
 		    res.writeHead( httpCode.ok, context.$setHeader);
                     res.write(data);
                     res.end();
@@ -141,31 +142,59 @@ server.on('request', function(req,res){
                    });
                    }//end if isBinary
                   }//end if exists
+                  else{
+                   if(config.errFile != undefined){//send error file 	  
+	           context.$setHeader['content-type'] = getMime(config.root + config.errFile);
+                   j2h.init(config.root+'/'+config.errFile);
+		   j2h.run(config.showErr != undefined ? config.showErr : true, context, function(err,data){
+		    res.writeHead(httpCode.ok, context.$setHeader);
+		    res.write(data);
+		    res.end();
+                    delete context;
+		   });
+	          }
+	          else{//send 404 not found
+	           res.writeHead( httpCode.notFound );
+		   res.end();
+                  delete context;
+	         }
+                }//end else exist
 	     }//end if isDir
             if(stats.isFile()){
-                context.get = url.parse(req.url).query;
-		   if(!isBinary(config.root + url.parse(req.url).pathname)){
+                  if(!isBinary(config.root + url.parse(req.url).pathname)){
                    context.$setHeader['content-type'] = getMime(config.root+url.parse(req.url).pathname) ? 
                    getMime(config.root+url.parse(req.url).pathname) : 'text/plain';
-                   j2h.init(config.root+url.parse(req.url).pathname , context);
-		   j2h.run(config.showErr != undefined ? config.showErr : true, function(err,data){
+                   j2h.init(config.root+url.parse(req.url).pathname );
+		   j2h.run(config.showErr != undefined ? config.showErr : true, context, function(err,data){
 		    res.writeHead( httpCode.ok, context.$setHeader);
                     res.write(data);
                     res.end();
-                   });
+                    delete context;
+                  });
                    }//end if isBinary
                    if(isBinary(config.root + url.parse(req.url).pathname)){
                     context.$setHeader['content-type'] = getMime(config.root+url.parse(req.url).pathname);
                     res.writeHead(httpCode.ok, context.$setHeader);
-                    fs.createReadStream(config.root + url.parse(req.url).pathname).pipe(res);
+                    var pipe = fs.createReadStream(config.root + url.parse(req.url).pathname);
+                    pipe.on('data', function(data){
+                     res.write(data);
+                     res.end();
+                    });
+                    delete context;
                    }//end if isBinary
             }//end if isFile
 	   });//end fs stats
 	  }//end else
-	 }); 
-      });
-    server.listen(config.port);
-    return true;
-   },
+          });//end exists
+         }//end runner
+ 
+if(callback != undefined ) event.on('userfunc', callback);
+run.on('run', render);   
 
-}
+server.on('request', function(req,res){
+  event.emit('userfunc',url.parse(req.url,true).query, url.parse(req.url).pathname, req, res, run);
+ });//end request 
+ server.listen(config.port); return true; 
+},//end createServer
+    
+}//end dhttp
