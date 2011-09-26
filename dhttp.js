@@ -117,23 +117,17 @@ function render(req,res){
 		 res.writeHead(httpCode.ok, context.$setHeader);
 		 res.write(data);
 		 res.end();
-<<<<<<< HEAD
                  delete context;
-=======
-		 delete context;
->>>>>>> f8fd962b4398fc6514fc9c51e080ec9f2aff5cbe
 		});
 	   }
 	    else{//send 404 not found
 	      res.writeHead( httpCode.notFound );
 		  res.end();
-<<<<<<< HEAD
-                 delete context;
+                  delete context;
 	    }
-=======
-		  delete context;
+         	  delete context;
 		}
->>>>>>> f8fd962b4398fc6514fc9c51e080ec9f2aff5cbe
+
 	  }
 	 //request url is found
            else{
@@ -179,25 +173,23 @@ function render(req,res){
                     res.write(data);
                     res.end();
                     delete context;
-<<<<<<< HEAD
+
                   });
-=======
+
                    });
->>>>>>> f8fd962b4398fc6514fc9c51e080ec9f2aff5cbe
+
                    }//end if isBinary
                    if(isBinary(config.root + url.parse(req.url).pathname)){
                     context.$setHeader['content-type'] = getMime(config.root+url.parse(req.url).pathname);
                     res.writeHead(httpCode.ok, context.$setHeader);
-<<<<<<< HEAD
+
                     var pipe = fs.createReadStream(config.root + url.parse(req.url).pathname);
                     pipe.on('data', function(data){
                      res.write(data);
                      res.end();
                     });
-=======
-                    fs.createReadStream(config.root + url.parse(req.url).pathname).pipe(res);
->>>>>>> f8fd962b4398fc6514fc9c51e080ec9f2aff5cbe
-                    delete context;
+                   fs.createReadStream(config.root + url.parse(req.url).pathname).pipe(res);
+                  delete context;
                    }//end if isBinary
             }//end if isFile
 	   });//end fs stats
