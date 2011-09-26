@@ -1,4 +1,4 @@
-﻿// HTTP Dunamic Server for nodejs version 0.01
+// HTTP Dunamic Server for nodejs version 0.01
 var http  = require('http');
 var https = require('https');
 var fs    = require('fs');
@@ -123,11 +123,8 @@ function render(req,res){
 	    else{//send 404 not found
 	      res.writeHead( httpCode.notFound );
 		  res.end();
-                  delete context;
+                 delete context;
 	    }
-         	  delete context;
-		}
-
 	  }
 	 //request url is found
            else{
@@ -173,23 +170,17 @@ function render(req,res){
                     res.write(data);
                     res.end();
                     delete context;
-
                   });
-
-                   });
-
                    }//end if isBinary
                    if(isBinary(config.root + url.parse(req.url).pathname)){
                     context.$setHeader['content-type'] = getMime(config.root+url.parse(req.url).pathname);
                     res.writeHead(httpCode.ok, context.$setHeader);
-
                     var pipe = fs.createReadStream(config.root + url.parse(req.url).pathname);
                     pipe.on('data', function(data){
                      res.write(data);
                      res.end();
                     });
-                   fs.createReadStream(config.root + url.parse(req.url).pathname).pipe(res);
-                  delete context;
+                    delete context;
                    }//end if isBinary
             }//end if isFile
 	   });//end fs stats
