@@ -3,7 +3,7 @@ var fs = require('fs');
 
 //server configuration - конфиг сервера
 var config = {
- //server type [ http || https || ws] - Тип создаваемого сервера 
+ //server type [ http || https] - Тип создаваемого сервера 
  type: 'http', 
  //https configuration - Опции TLS(SSL)
  https: {key: '/var/node/cert/nodejskey.pem', cert: '/var/node/cert/nodejscert.pem'},
@@ -21,6 +21,8 @@ var config = {
  noRun: ['node', 'admin.js', 'js2html/*', 'test/*'],
  //character set - Кодировка
  charset: 'utf8',
+ //WebSockets config
+ wsconfig: { proto: 'chat', },
 }
 
 //user object - пользовательский обьект его свойства доступны в шаблоне 
@@ -31,33 +33,45 @@ var main = {
  ses: 0,
 }
 
-//запуск сервера  (обьект конфигурации , параметры пользователя, 
-//Функция выполняется при поступлении запроса параметры:  
+//createServer(обьект конфигурации , параметры пользователя, Анонимная Функция {параметры:}:  
 //1)разобранная строка запроса 
 //2)путь в url  )
-//3)request
-//4)response
-//5)event 
+//3)Обьект request
+//4)Обьект response
+//5)event обработки шаблона 
+//В случае WS Запроса event == false, res == stream
 
-var on = dhttp.createServer(config, main, function(q,p,req,res,render){  
-  main.path = main.src + p ;
+var on = dhttp.createServer(config, main, function(query,path,req,res,render){  
   
- if(q.dhttp == 'j2h'){ 
+ if(!render){//WebSocket запрос возврашяем данные шаблон не обрабатываем
+  res.on('data', function(mess){
+   //console.log('mess');
+    if( res.writable )
+    res.write(mess);
+   } 
+  });
+  return;
+ } 
+ 
+ if(query.dhttp == 'j2h'){//Ajax Запрос возвращяем данные шаблон не обрабатываем 
     res.end('{"user":"j2h"}'); 
     return; 
   }
   
- if(p == '/'){
+ //НТТР Запрос используем асинхронную функцию так как в шаблоне этого делать нельзя
+ //затем выполняем шаблон.
+ if(path == '/'){
    fs.readFile('/etc/passwd', function(err,data){
     main.data = data;
-    render.emit('run',req,res); main.data = ''; 
+     render.emit('run',req,res); 
+    main.data = ''; 
    return;
    });
  }
+ 
+ //НТТР Запрос сдесь к примеру просто обрабатываем шаблон. 
+ render.emit('run',req,res);
 
- else{
-   render.emit('run',req,res);
- }
 });
 
 console.log( on ? 'server:85': 'error');

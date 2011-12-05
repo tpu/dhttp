@@ -1,19 +1,45 @@
 <html>
 <!-- 
 template global vareables
+
 $get - url query string - разобранная строка запроса
 $var - global variables in template  - переменные видны во всем шаблоне
 $cookie - cookies - разобранный набор печенек
 $header - 
 $setHeader - variables to set http headers - принипает загаловки http
-$console function console.log - no comment
-$() function echo - no comment
+$console - function console.log - no comment
+$() - function echo - no comment
+
 -->
 <head>
 <meta http-equiv="content-type" content="text/html; charset=utf-8" >
 <script language="javascript" src="jquery-1.6.2.js"></script>
+<!-- Работа с сервером через WS -->
 <script language="javascript">
- $(document).ready(function(){
+$(document).ready(function(){
+ if(!window.WebSocket)alert('don"WebSocket');
+ $('#ws').click(function(){
+   var sock = new WebSocket('ws://192.168.0.245:85/ws', 'chat');
+   sock.onopen = function(event){
+     $('#wsstate').attr('value', 'socket open');
+     $('#wssend').removeAttr('disabled');
+     $('#wssend').click(function(){ sock.send( $('#wsmess').attr('value') ); });
+   }
+   sock.onmessage = function(mess){
+     //alert(mess.data.toString());
+     $('#mess').append(mess.data.toString()+'\r\n');
+   }
+   sock.onclose = function(event){
+    $('#wsstate').attr('value', 'socket close');
+   }
+   sock.onerror = function(err){
+    console.log('ws error '+err.data);
+   }
+  
+ }); 
+});
+ 
+$(document).ready(function(){
  $('#a').click(function(){
   $.ajax({
    type: 'GET',
@@ -30,22 +56,34 @@ $() function echo - no comment
 <body align="center" id="body">
 
 <img src="dhttp.png" />
+
 <!--set cookie-->
 <? if($cookie.user == undefined){ $setHeader['set-cookie'] = 'user=user'+ses; ses++;}?>
+
 <!--set global template variable -->
 <? $var.i = 'this j2h template';?>
+
 <!--set local variavle end concat global + local-->
 <p><? var i = 'runing with dhttp node.js module'; $($var.i +' '+ i)?></p>
 <a href="http://192.168.0.245:85/?user=dhttp">press to read query variable</a>
+
 <!--print url param-->
 <p>GET Variables <?$($get.user != undefined ? $get.user : '')?></p>
+
 <!--print user param-->
 <p>User Variables <?$(path)?></p>
+
 <!--print cookies -->
 <p>Cookie Variables <?$($cookie.user != undefined ? $cookie.user : '')?></p>
 <a href="#" id="a">press to read ajax variable</a>
+
 <!--print ajax param-->
 <p><?$($get.dhttp != undefined ? $get.dhttp : '')?></p>
 <p><?$(data)?></p>
+ <input type="button" value="ws connect" id="ws" />
+ <input type="text" value="socket state" id="wsstate" /><br /><br />
+ <textarea rows="5" cols="45" id="mess"/></textarea><br />
+ <input type="button" value="send" id="wssend" />
+ <input type="text" value="" id="wsmess" />
 </body>
 </html>
