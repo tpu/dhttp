@@ -48,8 +48,7 @@ var on = dhttp.createServer(config, main, function(query,path,req,res,render){
    //console.log('mess');
     if( res.writable )
     res.write(mess);
-   } 
-  });
+   }); 
   return;
  } 
  
