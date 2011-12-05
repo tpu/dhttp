@@ -1,4 +1,4 @@
-﻿// HTTP Dunamic Server for nodejs version 0.01
+// HTTP Dunamic Server for nodejs version 0.01
 var http  = require('http');
 var https = require('https');
 var crypto= require('crypto');
