@@ -13,20 +13,19 @@ $() - function echo - no comment
 -->
 <head>
 <meta http-equiv="content-type" content="text/html; charset=utf-8" >
-<script language="javascript" src="jquery-1.6.2.js"></script>
-<!-- Работа с сервером через WS и Ajax-->
+<script language="javascript" src="jquery-1.7.2.min.js"></script>
+<!-- Работа с сервером через WS -->
 <script language="javascript">
 $(document).ready(function(){
  if(!window.WebSocket)alert('don"WebSocket');
  $('#ws').click(function(){
-   var sock = new WebSocket('ws://192.168.0.245:85/ws', 'chat');
+   var sock = new WebSocket('ws://192.168.0.111:8090/ws', 'chat');
    sock.onopen = function(event){
      $('#wsstate').attr('value', 'socket open');
      $('#wssend').removeAttr('disabled');
      $('#wssend').click(function(){ sock.send( $('#wsmess').attr('value') ); });
    }
    sock.onmessage = function(mess){
-     //alert(mess.data.toString());
      $('#mess').append(mess.data.toString()+'\r\n');
    }
    sock.onclose = function(event){
@@ -46,7 +45,7 @@ $(document).ready(function(){
    url: 'index.htm',
    data: 'dhttp=j2h',
    dataType: 'json',
-   success: function(msg){alert(msg.user.toString());}
+   success: function(msg){ alert( msg.user.toString() );}
   });
  });
 });
@@ -65,21 +64,13 @@ $(document).ready(function(){
 
 <!--set local variavle end concat global + local-->
 <p><? var i = 'runing with dhttp node.js module'; $($var.i +' '+ i)?></p>
-<a href="http://192.168.0.245:85/?user=dhttp">press to read query variable</a>
-
-<!--print url param-->
-<p>GET Variables <?$($get.user != undefined ? $get.user : '')?></p>
-
-<!--print user param-->
-<p>User Variables <?$(path)?></p>
 
 <!--print cookies -->
 <p>Cookie Variables <?$($cookie.user != undefined ? $cookie.user : '')?></p>
-<a href="#" id="a">press to read ajax variable</a>
+<input type="button" id="a" value="press to read ajax variable" />
 
 <!--print ajax param-->
 <p><?$($get.dhttp != undefined ? $get.dhttp : '')?></p>
-<p><?$(data)?></p>
  <input type="button" value="ws connect" id="ws" />
  <input type="text" value="socket state" id="wsstate" /><br /><br />
  <textarea rows="5" cols="45" id="mess"/></textarea><br />
