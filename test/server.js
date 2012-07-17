@@ -1,7 +1,5 @@
 var dhttp = require('./dhttp').dhttp;
 var ws = require('./dhttp').ws
-var fs = require('fs');
-var http = require('http');
 
 //server configuration - конфиг сервера
 var config = {
