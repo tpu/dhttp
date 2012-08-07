@@ -37,43 +37,63 @@ var config = {
 }
 
 var main = {
-  ses: 0,
+  sesion: 0,
+  test: 0,
 }
+var sockets = []; 
 
 //Функция создания сервера
 //параметры:
 //( Обьект конфигурации, Пользовательский обьект для передачи в шаблон, КаллБэк функция обработки запросов  )
 //параметры КаллБэк:
-//( query - разобраная строка запроса, path - путь в запросе, Обьект request, Обьект Response, Функция рендеринга шаблона, Функция просмотра запроса )
-var on = dhttp.createServer(config, main, function( query, path, req, res, render, get ){  
+//( query - разобраная строка запроса, path - путь в запросе, Обьект request, Обьект Response, Служебный обьект)
+var on = dhttp.createServer(config, main, function( query, path, req, res, app ){  
+
+//app.get( find, type[path or query], anonymous function ) 
+//app.write( path to file or empty(automatic) )
+
+//AJAX
+   app.get( /dhttp/i, 'q',  function(){
+	  res.writeHead( 200 );
+	  res.end( JSON.stringify( { hello: ' hello dhttp server'} ) );
+    } );
+
+//WebSockets
+    app.get( /^\/ws$/i, 'p', function(){
+	 sockets.push( res );
+	 setInterval(function(){
+	    res.write( ws.ping() );
+	 }, 30000);
  
- //AJAX
- get( 'dhttp', 'q',  function(){
-     res.writeHead( 200 );
-  res.end( JSON.stringify( { user: 'world' } ) );
- } );
- 
- //WebSockets
- get( '/ws', 'p', function(){
-     res.on('data', function(mess){
-      console.log( 'packet type - ' + ws.getDataType( mess ) );
-	  console.log( 'packet fin - ' + ws.isEnd( mess ) );
-	  console.log( 'packet masked - ' + ws.isMasked( mess ) );
-	  console.log( 'packet mask key - ' + ws.getMaskKey( mess ) );
-	  console.log( 'packet data len - ' + ws.getDataLen( mess ) );
-	  console.log( 'packet data -' + ws.getTextData( mess ).toString() );
-	  
-   } );
-   res.on('end', function(){
-      console.log(' socket end');
+   res.on('data', function(mess){
+	if( ws.getDataType( mess )  == 10 ){
+	    console.log( 'pong ответ от ' + res.remoteAddress );}
+        if( ws.getDataType( mess )  == 9 ){
+	    console.log( 'ping запрос от ' + res.remoteAddress );
+        res.write( ws.pong() );
+	}
+	if(ws.getDataType( mess ) == 1 ){
+	  for( var i = 0; i < sockets.length; i++ ){
+	   	                        \\( data, fin, opcode, masked )            
+              sockets[i].write( ws.addData( ws.getData(mess), true, 1, false) )
+	  } 
+     }	
+    });
+     res.on('close', function(){
+       console.log('socket index '+ sockets.indexOf( res ) +' close');
+	   sockets.splice( sockets.indexOf( res ), 1 );
+     });
    });
- });
- 
- //HTTP
- get( '/', 'p',  function(){
- 	 render();
-  } );
- 
+
+//write file
+    app.get( /test$/, 'p',  function(){
+        app.write('c:/node/Seo/test.txt' )
+    });   
+
+//response html, template, js, css, binary 
+    app.get( /^\//, 'p',  function(){
+	     app.write( );
+    } );	
 });
 
 console.log( on ? 'server:8090': 'error');
@@ -110,7 +130,7 @@ $() - function echo - Функция вывода контента
 $(document).ready(function(){
  if(!window.WebSocket)alert('don"WebSocket');
  $('#ws').click(function(){
-   var sock = new WebSocket('ws://192.168.0.245:85/ws', 'chat');
+   var sock = new WebSocket('ws://192.168.0.111:8090/ws', 'chat');
    sock.onopen = function(event){
      $('#wsstate').attr('value', 'socket open');
      $('#wssend').removeAttr('disabled');
@@ -137,7 +157,7 @@ $(document).ready(function(){
    url: 'index.htm',
    data: 'dhttp=j2h',
    dataType: 'json',
-   success: function(msg){alert(msg.user.toString());}
+   success: function(msg){alert(msg.hello.toString());}
   });
  });
 });
@@ -152,11 +172,11 @@ $(document).ready(function(){
 <img src="dhttp.png" />
 
 <!-- set cookie - Установка Кука -->
-<? if($cookie.user == undefined){ $setHeader['set-cookie'] = 'user=user'+ses; ses++;}?>
+<? if($cookie.user == undefined){ $setHeader['set-cookie'] = 'user=user'+sesion; sesion++;}?>
 
 <!-- set global template variable - $var.i будет доступна в любом месте шаблона
 в отличии от локальных переменных в нутри вставки кода -->
-<? $var.i = 'this j2h template';?>
+<? $var.i = 'this is j2h template';?>
 
 <!-- set local variavle end concat global + local 
      Вывод контента локальная переменная вставки + глобальная переменная шаблона
