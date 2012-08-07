@@ -26,43 +26,55 @@ var config = {
 }
 
 var main = {
-  ses: 0,
+  sesion: 0,
+  test: 0,
 }
+var sockets = []; 
+ 
+var on = dhttp.createServer(config, main, function( query, path, req, res, app ){  
 
-//Функция создания сервера
-//параметры:
-//( Обьект конфигурации, Пользовательский обьект для передачи в шаблон, КаллБэк функция обработки запросов  )
-//параметры КаллБэк:
-//( query - разобраная строка запроса, path - путь в запросе, Обьект request, Обьект Response, Функция рендеринга шаблона, Функция просмотра запроса )
-var on = dhttp.createServer(config, main, function( query, path, req, res, render, get ){  
- 
+//console.log( util.inspect(this) )
  //AJAX
- get( 'dhttp', 'q',  function(){
-     res.writeHead( 200 );
-  res.end( JSON.stringify( { user: 'world' } ) );
- } );
+   app.get( /dhttp/i, 'q',  function(){
+	  res.writeHead( 200 );
+	  res.end( JSON.stringify( { hello: ' hello dhttp server'} ) );
+    } );
+
+//WebSockets 
+    app.get( /^\/ws$/i, 'p', function(){
+	 sockets.push( res );
+	 setInterval(function(){
+	    res.write( ws.ping() );
+	 }, 30000);
  
- //WebSockets
- get( '/ws', 'p', function(){
-     res.on('data', function(mess){
-      console.log( 'packet type - ' + ws.getDataType( mess ) );
-	  console.log( 'packet fin - ' + ws.isEnd( mess ) );
-	  console.log( 'packet masked - ' + ws.isMasked( mess ) );
-	  console.log( 'packet mask key - ' + ws.getMaskKey( mess ) );
-	  console.log( 'packet data len - ' + ws.getDataLen( mess ) );
-	  console.log( 'packet data -' + ws.getTextData( mess ).toString() );
-	  
-   } );
-   res.on('end', function(){
-      console.log(' socket end');
+   res.on('data', function(mess){
+	if( ws.getDataType( mess )  == 10 ){
+	    console.log( 'pong ответ от ' + res.remoteAddress );}
+        if( ws.getDataType( mess )  == 9 ){
+	    console.log( 'ping запрос от ' + res.remoteAddress );
+        res.write( ws.pong() );
+	}
+	if(ws.getDataType( mess ) == 1 ){
+	  for( var i = 0; i < sockets.length; i++ ){
+	   	sockets[i].write( ws.addData( ws.getData(mess), true, 1, false) )
+	  } 
+     }	
+    });
+     res.on('close', function(){
+       console.log('socket index '+ sockets.indexOf( res ) +' close');
+	   sockets.splice( sockets.indexOf( res ), 1 );
+     });
    });
- });
- 
- //HTTP
- get( '/', 'p',  function(){
- 	 render();
-  } );
- 
+
+//write file
+    app.get( /tee$/, 'p',  function(){
+	  	 app.write('c:/node/Seo/test.txt' )
+    });   
+
+//response html, template, js, css, binary 
+    app.get( /^\//, 'p',  function(){
+	     app.write( );
+    } );	
 });
 
 console.log( on ? 'server:8090': 'error');
