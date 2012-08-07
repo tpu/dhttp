@@ -13,20 +13,22 @@ $() - function echo - no comment
 -->
 <head>
 <meta http-equiv="content-type" content="text/html; charset=utf-8" >
-<script language="javascript" src="jquery-1.7.2.min.js"></script>
+<script language="javascript" src="/template/jquery-1.7.2.min.js"></script>
 <!-- Работа с сервером через WS -->
 <script language="javascript">
 $(document).ready(function(){
+
  if(!window.WebSocket)alert('don"WebSocket');
- $('#ws').click(function(){
-   var sock = new WebSocket('ws://192.168.0.111:8090/ws', 'chat');
+  $('#ws').click(function(){
+
+  var sock = new WebSocket('ws://192.168.0.111:8090/ws', 'chat');
    sock.onopen = function(event){
      $('#wsstate').attr('value', 'socket open');
      $('#wssend').removeAttr('disabled');
      $('#wssend').click(function(){ sock.send( $('#wsmess').attr('value') ); });
    }
    sock.onmessage = function(mess){
-     $('#mess').append(mess.data.toString()+'\r\n');
+     $('#mess').append(mess.data+'\r\n');
    }
    sock.onclose = function(event){
     $('#wsstate').attr('value', 'socket close');
@@ -34,7 +36,7 @@ $(document).ready(function(){
    sock.onerror = function(err){
     console.log('ws error '+err.data);
    }
-  
+
  }); 
 });
  
@@ -45,7 +47,7 @@ $(document).ready(function(){
    url: 'index.htm',
    data: 'dhttp=j2h',
    dataType: 'json',
-   success: function(msg){ alert( msg.user.toString() );}
+   success: function(msg){ alert( msg.hello.toString() );}
   });
  });
 });
@@ -53,11 +55,10 @@ $(document).ready(function(){
 </head>
 <title><?$('dhttp server')?></title>
 <body align="center" id="body">
-
-<img src="dhttp.png" />
+<!-- <img src="dhttp.png" />-->
 
 <!--set cookie-->
-<? if($cookie.user == undefined){ $setHeader['set-cookie'] = 'user=user'+ses; ses++;}?>
+<? if($cookie.user == undefined){ $setHeader['set-cookie'] = 'user=user'+sesion; sesion++;}?>
 
 <!--set global template variable -->
 <? $var.i = 'this j2h template';?>
