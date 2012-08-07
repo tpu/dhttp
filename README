@@ -186,7 +186,7 @@ $(document).ready(function(){
    ?>
 </p>
 
-<a href="http://192.168.0.245:85/?user=dhttp">press to read query variable</a>
+<a href="http://192.168.0.111:8090/?user=dhttp">press to read query variable</a>
 
 <!-- print url param - Вывод параметра запрошенного URL -->
 <p>GET Variables <?$($get.user != undefined ? $get.user : '')?></p>
