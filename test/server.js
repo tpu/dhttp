@@ -40,7 +40,7 @@ var sockets = [];
  
 var on = dhttp.createServer(config, main, function( query, path, req, res, app ){  
 
-//console.log( req.headers );
+
 //AJAX
    app.get( /dhttp/i, 'q',  function(){
 	  res.writeHead( 200 );
