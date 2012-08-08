@@ -8,7 +8,8 @@ var query = require('querystring');
 var j2h   = require('./j2h/j2h').j2h;
 var path  = require('path');
 var util  = require('util');
-//var zlib = require('zlib');
+var zlib = require('zlib');
+var domain = require('domain');
 var events= require('events').EventEmitter, usrfnc = new events();
 
  var mime = {
@@ -43,244 +44,375 @@ var events= require('events').EventEmitter, usrfnc = new events();
 	 rar: 'rar',
  }
 
- var httpCode = {
+   var httpCode = {
      ok: 200,
      notFound: 404,
- }
+   }
 
-var getMime = function(fname){
-  for(var e in mime){
-   if('.'+e == path.extname(fname))return mime[e];
+  var getMime = function(fname){
+   for(var e in mime){
+    if('.'+e == path.extname(fname))return mime[e];
+   }
+   return false;
   }
-return false;
-}
 
-var isBinary = function(fname){
- for(var e in binary){
-  if(binary[e] == path.extname(fname)) return true;
- }
-return false;   
-}
+  var isBinary = function(fname){
+   for(var e in binary){
+    if(binary[e] == path.extname(fname)) return true;
+    }
+   return false;   
+  }
 
-var noRunFiles = function(croot, noRun, fname){
-  for(var i = 0; i < noRun.length; i++){
-   if(croot+'/'+noRun[i] == fname) return true;
-   if(path.basename(croot+'/'+noRun[i]) == '*' && path.dirname(croot+'/'+noRun[i]) == path.dirname(fname)) return true;
- }
-return false;
-}
+   var noRunFiles = function(croot, noRun, fname){
+    for(var i = 0; i < noRun.length; i++){
+     if(croot+'/'+noRun[i] == fname) return true;
+     if(path.basename(croot+'/'+noRun[i]) == '*' && path.dirname(croot+'/'+noRun[i]) == path.dirname(fname)) return true;
+    }
+   return false;
+  }
 
-var objConcat = function(first, slave){
-  for( e in slave){
-   first[e] = slave[e]; 
- }
-}
+  var objConcat = function(first, slave){
+    for( e in slave){
+     first[e] = slave[e]; 
+    }
+  }
 
-var render = function(config , context, req, res, file ){
+  var render = function(config , context, req, res, file ){
     //setContext;
-    context.$get = url.parse( req.url, true ).query ;
-    context.$cookie = query.parse(req.headers.cookie, '; ') != undefined ? query.parse(req.headers.cookie, '; ') : {} ;
-    context.$var = {};
-    context.$header = {};
-    context.$setHeader = {};
-	context.$console = console.log;
+     context.$get = url.parse( req.url, true ).query ;
+     context.$cookie = query.parse(req.headers.cookie, '; ') != undefined ? query.parse(req.headers.cookie, '; ') : {} ;
+     context.$var = {};
+     context.$header = req.headers;
+     context.$setHeader = {};
+	 context.$console = console.log;
 	
-  if( file !== undefined ){
-   context.$setHeader['content-type'] = getMime( file );
-	try{
-		j2h.init( file );
-	    j2h.run(config.showErr != undefined ? config.showErr : true, context, function( err, data ){
-		       res.writeHead( httpCode.ok, context.$setHeader );
-		       if( isBinary( file ) ){
-			     fs.createReadStream( file ).pipe( res );
+     if( file !== undefined ){
+  	    // try{
+		    if( isBinary( file ) ){
+			    context.$setHeader['content-type'] = getMime( file );
+			    res.writeHead( httpCode.ok, context.$setHeader );
+			    fs.createReadStream( file ).pipe( res );
                    delete context;
-			   }
-			   else{
-			   res.end( data );
-		          delete context;
+			  }
+			  else{
+			    j2h.init( file );
+	            j2h.run(config.showErr != undefined ? config.showErr : true, context, function( err, data ){
+                    if( config.encode ){ 
+				       if( req.headers['accept-encoding'].indexOf( 'gzip' ) >= 0 ){
+						context.$setHeader['content-encoding'] = 'gzip';
+					    context.$setHeader['content-type'] = getMime( file );
+					      res.writeHead( httpCode.ok, context.$setHeader);
+						   zlib.gzip(data, function(err, gdata){
+				            if( err ) throw err;
+							res.end(gdata);
+                           });
+						  delete context; return; 
+						}  
+					else  if( req.headers['accept-encoding'].indexOf( 'deflate' ) ){
+					    context.$setHeader['content-encoding'] = 'deflate';
+					    context.$setHeader['content-type'] = getMime( file );
+					     res.writeHead( httpCode.ok, context.$setHeader);
+						  zlib.deflate(data, function(err, gdata){
+				           if( err ) throw err;
+						   res.end(gdata);
+                          });
+					      delete context; return;
+						}
+					}
+					context.$setHeader['content-type'] = getMime( file );
+					res.writeHead( httpCode.ok, context.$setHeader);
+					res.end( data );  
+					    delete context;
+                });			 
 			  }	  
-		});
-	}catch( e ){ console.log( e ) }
-	return;
-  }
+		   	//}catch( e ){ console.log( e ) }
+	        return;
+      }
    
    //find request url on the server 
-    fs.exists(config.root+url.parse(req.url).pathname, function(exist){
+      fs.exists(config.root+url.parse(req.url).pathname, function(exist){
 	//request url not found
-     if(!exist || noRunFiles(config.root, config.noRun, config.root+url.parse(req.url).pathname )){
-	   if(config.errFile != undefined){//send error file 	  
-	        context.$setHeader['content-type'] = getMime(config.root + config.errFile);
-              j2h.init(config.root+'/'+config.errFile);
+         if(!exist || noRunFiles(config.root, config.noRun, config.root+url.parse(req.url).pathname )){
+	       if(config.errFile != undefined){//send error file 	  
+	        process.nextTick( function(){ 
+			  j2h.init(config.root+'/'+config.errFile);
 		      j2h.run(config.showErr != undefined ? config.showErr : true, context, function(err,data){
-		       res.writeHead(httpCode.ok, context.$setHeader);
-		       res.end(data);
-		        delete context;
-		});
-	   }
-	   else{//send 404 not found
-	      res.writeHead( httpCode.notFound );
-		  res.end();
-                 delete context;
-	    }
-	  }
-	 //request url is found
-      else{
-	     fs.stat(config.root+url.parse(req.url).pathname, function(err, stats){
-          if(stats.isDirectory()){
-		   if(fs.existsSync(config.root + url.parse(req.url).pathname + config.index)){
-		    if(!isBinary(config.root + url.parse(req.url).pathname + config.index)){
-                context.$setHeader['content-type'] = getMime(config.root+url.parse(req.url).pathname + config.index);
-                j2h.init(config.root+url.parse(req.url).pathname + config.index );
-		        j2h.run(config.showErr != undefined ? config.showErr : true, context,function(err,data){
-		         res.writeHead( httpCode.ok, context.$setHeader);
-                 res.end(data);
-                    delete context;
-                });
-             }//end if isBinary
+                   if( err ) throw err;
+					if( config.encode ){ 
+				       if( req.headers['accept-encoding'].indexOf( 'gzip' ) >= 0 ){
+						context.$setHeader['content-encoding'] = 'gzip';
+					    context.$setHeader['content-type'] = getMime( config.root+ '/' + config.errFile );
+					      res.writeHead( httpCode.ok, context.$setHeader);
+						   zlib.gzip(data, function(err, gdata){
+				             if( err ) throw err;
+							 res.end(gdata);
+                           });
+						  delete context; return; 
+						}  
+					else  if( req.headers['accept-encoding'].indexOf( 'deflate' ) ){
+					    context.$setHeader['content-encoding'] = 'deflate';
+					    context.$setHeader['content-type'] = getMime( config.root+ '/' + config.errFile );
+					     res.writeHead( httpCode.ok, context.$setHeader);
+						   zlib.deflate(data, function(err, gdata){
+				             if( err ) throw err;
+						     res.end(gdata);
+                           });
+					      delete context; return;
+						}
+					}
+					context.$setHeader['content-type'] = getMime( config.root+ '/' + config.errFile );
+					res.writeHead( httpCode.ok, context.$setHeader);
+					res.end( data );  
+					    delete context; return; 
+		     }); });
+	      }
+	      else{//send 404 not found
+	         process.nextTick( function(){  
+		      res.writeHead( httpCode.notFound );
+		      res.end();
+                 delete context; return;
+	         });
+		   } 
+	     }
+	      //request url is found
+         else{
+	        fs.stat(config.root+url.parse(req.url).pathname, function(err, stats){
+            if( err ) throw err;
+			 if(stats.isDirectory()){
+		      if(fs.existsSync(config.root + url.parse(req.url).pathname + config.index)){
+		       if(!isBinary(config.root + url.parse(req.url).pathname + config.index)){
+				process.nextTick(function(){
+				 j2h.init(config.root+url.parse(req.url).pathname + config.index );
+		         j2h.run(config.showErr != undefined ? config.showErr : true, context, function(err,data){
+		          if( err ) throw err;
+					if( config.encode ){ 
+				       if( req.headers['accept-encoding'].indexOf( 'gzip' ) >= 0 ){
+						context.$setHeader['content-encoding'] = 'gzip';
+					    context.$setHeader['content-type'] = getMime(config.root+url.parse(req.url).pathname + config.index);
+					      res.writeHead( httpCode.ok, context.$setHeader);
+						   zlib.gzip(data, function(err, gdata){
+				             if( err ) throw err;
+							 res.end(gdata);
+                           });
+						  delete context; return; 
+						}  
+					else  if( req.headers['accept-encoding'].indexOf( 'deflate' ) ){
+					    context.$setHeader['content-encoding'] = 'deflate';
+					    context.$setHeader['content-type'] = getMime(config.root+url.parse(req.url).pathname + config.index);
+					     res.writeHead( httpCode.ok, context.$setHeader);
+						  zlib.deflate(data, function(err, gdata){
+				             if( err ) throw err;
+							 res.end(gdata);
+                          });
+					      delete context; return;
+						}
+					}
+					context.$setHeader['content-type'] = getMime(config.root+url.parse(req.url).pathname + config.index);
+					res.writeHead( httpCode.ok, context.$setHeader);
+					res.end( data );  
+					    delete context; return; 
+				}); });
+             }//end if not Binary index file
             }//end if exists
             else{
                  if(config.errFile != undefined){//send error file 	  
-	                context.$setHeader['content-type'] = getMime(config.root + config.errFile);
+	              process.nextTick( function(){ 
     				j2h.init(config.root+'/'+config.errFile);
 		            j2h.run(config.showErr != undefined ? config.showErr : true, context, function(err,data){
-		              res.writeHead(httpCode.ok, context.$setHeader);
-					  res.end(data);
-                          delete context;
-		             });
+		             if( err ) throw err;
+					  if( config.encode ){ 
+				        if( req.headers['accept-encoding'].indexOf( 'gzip' ) >= 0 ){
+						 context.$setHeader['content-encoding'] = 'gzip';
+					     context.$setHeader['content-type'] = getMime( config.root+ '/' + config.errFile );
+					      res.writeHead( httpCode.ok, context.$setHeader);
+						    zlib.gzip(data, function(err, gdata){
+				             if( err ) throw err;
+							 res.end(gdata);
+                            });
+						  delete context; return; 
+						}  
+					else  if( req.headers['accept-encoding'].indexOf( 'deflate' ) >= 0 ){
+					    context.$setHeader['content-encoding'] = 'deflate';
+					    context.$setHeader['content-type'] = getMime( config.root+ '/' + config.errFile );
+					     res.writeHead( httpCode.ok, context.$setHeader);
+						  zlib.deflate(data, function(err, gdata){
+				             if( err ) throw err;
+							 res.end(gdata);
+                          });
+					      delete context; return;
+						}
+					}
+					context.$setHeader['content-type'] = getMime( config.root+ '/' + config.errFile );
+					res.writeHead( httpCode.ok, context.$setHeader);
+					res.end( data );  
+					    delete context; return; 
+		            
+					}); });
 	             }
 	             else{//send 404 not found
-	                res.writeHead( httpCode.notFound );
+	               process.nextTick(function(){ 
+					res.writeHead( httpCode.notFound );
 		            res.end();
-                         delete context;
+                         delete context; return;
+					});	 
 	             }
                 }//end else exist
-	       }//end if isDir
-            if(stats.isFile()){
+	        }//end if isDir
+            if( stats.isFile()){
                 if(!isBinary(config.root + url.parse(req.url).pathname)){
-                   context.$setHeader['content-type'] = getMime(config.root+url.parse(req.url).pathname) ? getMime(config.root+url.parse(req.url).pathname) : 'text/plain';
-                   //context.$setHeader['content-encoding'] = 'gzip';
+                 process.nextTick(function(){  
 				   j2h.init(config.root+url.parse(req.url).pathname );
 		           j2h.run(config.showErr != undefined ? config.showErr : true, context, function(err,data){
-		            res.writeHead( httpCode.ok, context.$setHeader);
-					res.end(data);
-                        delete context;
-                  });
+                    if( err ) throw err;
+					 if( config.encode ){ 
+				       if( req.headers['accept-encoding'].indexOf( 'gzip' ) >= 0 ){
+						 context.$setHeader['content-encoding'] = 'gzip';
+					     context.$setHeader['content-type'] = getMime( config.root+url.parse(req.url).pathname );
+					      res.writeHead( httpCode.ok, context.$setHeader);
+						   zlib.gzip(data, function(err, gdata){
+				             if( err ) throw err;
+							 res.end(gdata);
+                           });
+						  delete context; return; 
+						}  
+					else  if( req.headers['accept-encoding'].indexOf( 'deflate' ) ){
+					    context.$setHeader['content-encoding'] = 'deflate';
+					    context.$setHeader['content-type'] = getMime( config.root+url.parse(req.url).pathname );
+					     res.writeHead( httpCode.ok, context.$setHeader);
+						  zlib.deflate(data, function(err, gdata){
+				             if( err ) throw err;
+							 res.end(gdata);
+                          });
+					      delete context; return;
+						}
+					}
+					context.$setHeader['content-type'] = getMime( config.root+url.parse(req.url).pathname );
+					res.writeHead( httpCode.ok, context.$setHeader);
+					res.end( data );  
+					    delete context; return; 
+                  }); });
                 }//end if isBinary
-                if(isBinary(config.root + url.parse(req.url).pathname)){
-                    context.$setHeader['content-type'] = getMime(config.root+url.parse(req.url).pathname);
-                    res.writeHead(httpCode.ok, context.$setHeader);
-                    fs.createReadStream(config.root + url.parse(req.url).pathname).pipe( res );
-                       delete context;
-                   }//end if isBinary
+            if(isBinary(config.root + url.parse(req.url).pathname)){
+              process.nextTick( function(){ 
+			    context.$setHeader['content-type'] = getMime( config.root+url.parse(req.url).pathname );
+                res.writeHead(httpCode.ok, context.$setHeader);
+                fs.createReadStream(config.root + url.parse(req.url).pathname).pipe( res );
+                       delete context; return;
+			  });	   
+            }//end if isBinary
             }//end if isFile
 	   });//end fs stats
 	  }//end else
     });//end exists
-}//end render
+  }//end render
+  
+  var app = function( config, context, request, response, query, path ){
+     this.config = config;
+	 this.context =context;
+	 this.request = request;
+	 this.response = response;
+	 this.query = query;
+	 this.path = path;
+    }
+    app.prototype = { 
+       get: function( find, type, call ){
+        if( success ) return;  
+          if( type === 'q'  &&  this.query !== undefined ){
+            for( key in this.query ){
+	         if( find.test( key ) ) 
+	   	     {  success = true; call(); } 
+	        }		
+          }
+         if( type === 'p'  && this.path !== undefined ){
+           if( find.test( this.path ) ) 
+		   {  success = true; call(); }
+         }
+        
+	   },	
+       write: function( file ){
+		 render( this.config, this.context, this.request, this.response, file );
+       } 
+    }  
 
-var success = false;
-var server = null; 
-var wsMagic = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
-var wshash = '';
-var wsHandShake = '';
-var secKey = '';
+ var success = false;
+ var server = null; 
+ var wsMagic = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
+ var wshash = '';
+ var wsHandShake = '';
+ var secKey = '';
 
-exports.dhttp = {
- createServer: function(config, context, callback){
+ exports.dhttp = {
+  createServer: function(config, context, callback){
    if((config.port == undefined) || (config.root == undefined) || (config.index == undefined))
      { console.log('one or more configuration variables is not defined'); return false; }
 
-//create http or https server
- switch(config.type){
-    case 'https': if(config.https == undefined) return false; 
+   switch(config.type){
+     case 'https': if(config.https == undefined) return false; 
             var sslopt = { 
                                 key: fs.readFileSync(config.https.key),
                                 cert: fs.readFileSync(config.https.cert),
                                }
                 objConcat(config.https, sslopt);
                 server = https.createServer(config.https); break;
-    default: server = http.createServer(); break;
- }
+     default: server = http.createServer(); break;
+   }
 
-usrfnc.on('userFunction', callback); 
-  
-server.on('request', function( req, res ){
-success = false; 
-var app = { 
- request: req,
- response: res, 
- get: function( find, type, call ){
-  if( !success ){ 
-    if( type === 'q'  && callback.arguments[0] !== undefined ){
-       for( key in callback.arguments[0] ){
-	     if( find.test( key ) ) 
-	   	  {  success = true; call(); } 
-	   }		
-    }
-    if( type === 'p'  && callback.arguments[1] !== undefined ){
-       if( find.test( callback.arguments[1] ) ) 
-		  {  success = true; call(); }
-    }
-  }  
-}, 
+  server.on('request', function( req, res ){
+     success = false;
+	 var error = domain.create( );
+	 error.once('error', function(err){ 
+	   console.log( err ); 
+	   if( res.writable ){
+	     res.writeHead( 500 );
+         res.end( 'Internal Server Error' )
+       }	   
+	 });
+	 error.run(function(){
+	   var apps = new app( config, context, req, res, url.parse( req.url, true).query, url.parse( req.url ).pathname )
+       usrfnc.emit('userFunction', url.parse(req.url,true).query, url.parse(req.url).pathname, req, res, apps );
+     });
+ });//end request   
 
-write: function( file ){
-    render( config, context, this.request, this.response, file );
-  } 
-};
-  
-  usrfnc.emit('userFunction', url.parse(req.url,true).query, url.parse(req.url).pathname, req, res, app );
-});//end request   
-
-//WebSockets server|-------------------------------------------------------------------------------|
-if(config.wsconfig !== undefined ){
- server.on('upgrade', function(req, ws, sign){
- success = false; 
- var app = { 
- request: req,
- response: ws, 
- get: function( find, type, call ){
-  if( !success ){ 
-    if( type === 'q'  && callback.arguments[0] !== undefined ){
-       for( key in callback.arguments[0] ){
-	     if( find.test( key ) ) 
-	   	  {  success = true; call(); } 
-	}		
-  }
-     if( type === 'p'  && callback.arguments[1] !== undefined ){
-        if( find.test( callback.arguments[1] ) ) 
-	 	  {  success = true; call(); }
-     }
-   }  
- }, 
-};
-
-if(req.headers['sec-websocket-version'] != undefined && req.headers['upgrade'] == 'websocket'){
-  if(req.headers['sec-websocket-protocol'] != undefined && req.headers['sec-websocket-protocol'] == config.wsconfig.proto){
-   if( req.headers['sec-websocket-key'] != undefined ){
-   secKey = req.headers['sec-websocket-key']+wsMagic; 
-   wshash = crypto.createHash('sha1');
-   wshash.update(secKey);
-   wsHandShake = 'HTTP/1.1 101 Switching Protocols\r\n'+
+//WebSockets server|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+  if(config.wsconfig !== undefined ){
+   server.on('upgrade', function(req, ws, sign){
+    if(req.headers['sec-websocket-version'] != undefined && req.headers['upgrade'] == 'websocket'){
+     if(req.headers['sec-websocket-protocol'] != undefined && req.headers['sec-websocket-protocol'] == config.wsconfig.proto){
+      if( req.headers['sec-websocket-key'] != undefined ){
+       secKey = req.headers['sec-websocket-key']+wsMagic; 
+       wshash = crypto.createHash('sha1');
+       wshash.update(secKey);
+       wsHandShake = 'HTTP/1.1 101 Switching Protocols\r\n'+
                             'Upgrade: websocket\r\n'+
                             'Connection: Upgrade\r\n'+
                             'Sec-WebSocket-Accept: '+wshash.digest('base64')+'\r\n'+
                             'Sec-WebSocket-Protocol: '+config.wsconfig.proto+'\r\n\r\n';
-   ws.write(wsHandShake, 'binary');
-   usrfnc.emit('userFunction', url.parse(req.url, true).query, url.parse(req.url).pathname, req, ws, app );  
+       ws.write(wsHandShake, 'binary');
+        success = false;
+	    var error = domain.create( );
+	   error.once('error', function(err){ 
+	     console.log( err ); 
+       });
+	   error.run(function(){
+		  var apps = new app( config, context, req, null, url.parse( req.url, true).query, url.parse( req.url ).pathname )
+		  usrfnc.emit('userFunction', url.parse(req.url, true).query, url.parse(req.url).pathname, req, ws, apps );  
+       });
+	 }else{ ws.end('error') }
+    }else{ ws.end('error') }
    }else{ ws.end('error') }
-  }else{ ws.end('error') }
- }else{ ws.end('error') }
-});//end upgrade 
-}//end websockets server
- 
- server.listen(config.port); return true; 
- },//end createServer
-}//end dhttp
+  });//end upgrade 
+ }//end websockets server
+  
+  usrfnc.on('userFunction', callback); 
+  server.listen(config.port); return true; 
+  }
+ }//end dhttp
 
 
-exports.ws = {
-    getDataType: function( packet ){
+ exports.ws = {
+    packet: null,
+	
+	getDataType: function( packet ){
 	    return ( packet.readUInt8( 0 ) & 0xF ); 
 	},
 	
@@ -300,7 +432,7 @@ exports.ws = {
         if( ( packet.readUInt8( 1 ) ^ 0x80 ) == 127 ) return packet.readDoubleBE( 2 );			
 	},
 	
-	getMaskKey: function(packet){
+	getMaskKey: function( packet ){
 	  var key = new Buffer(4);
 	  	if( ( packet.readUInt8( 1 ) ^ 0x80 ) < 126 ) {  for( var i = 0; i < 4; i++ ) { key[ i ] = packet.readUInt8( i + 2 ); }  return key; }
         if( ( packet.readUInt8( 1 ) ^ 0x80 ) == 126 ) {  for( var i = 0; i < 4; i++ ) { key[ i ] = packet.readUInt8( i + 4 ); }  return key; }
@@ -331,12 +463,12 @@ exports.ws = {
 	} ,
     
 	createHeader: function( fin, opcode, masked ){
-      var packet = Buffer(2);
-	   packet.writeUInt16BE( 0, 0 );
-	   fin ? packet[0] = 0x80 : packet[0]  ; 
-	   opcode > 0 ? packet[0] = packet[0] | opcode : packet[0];  
-       masked ? packet[1] =  0x80 : packet[1] ;	   
-	   return packet;
+   	   this.packet = Buffer(2);
+	   this.packet.writeUInt16BE( 0, 0 );
+	   fin ? this.packet[0] = 0x80 : this.packet[0]  ; 
+	   opcode > 0 ? this.packet[0] = this.packet[0] | opcode : this.packet[0];  
+       masked ? this.packet[1] =  0x80 : this.packet[1] ;	   
+	   return this.packet;
 	},
     
 	addData: function(data , fin, opcode, masked){
@@ -348,19 +480,19 @@ exports.ws = {
       }		
 	  else throw new Error('data type must be a [ string or Buffer ]'); 
 	   var header = this.createHeader( fin, opcode, masked );
-	   var packet = null;
+	   //var packet = null;
 	   if( this.isMasked( header ) ){
-	    len < 126 ?  packet = Buffer( 2 + 4 + len ) : len > 125 && len <= 0xFFFF ? packet = Buffer( 2 + 2 + 4 + len ) :  packet = Buffer( 2 + 8 + 4 + len ) ;
+	    len < 126 ?  this.packet = Buffer( 2 + 4 + len ) : len > 125 && len <= 0xFFFF ? this.packet = Buffer( 2 + 2 + 4 + len ) :  this.packet = Buffer( 2 + 8 + 4 + len ) ;
 	    packet.writeUInt16BE( header.readUInt16BE( 0 ), 0 );
 		
 	   }
 	   else{ 
-	    len < 126 ?  packet = Buffer( 2 + len ) : len > 125 && len <= 0xFFFF ? packet = Buffer( 2 + 2 + len ) :  packet = Buffer( 2 + 8 + len ) ;
-	    packet.writeUInt16BE( header.readUInt16BE( 0 ), 0 );
-		len < 126 ?  packet[1] = packet[1] | len : len > 125 && len <= 0xFFFF ? packet[1] = packet[1] | 126 : packet[1] = packet[1] | 127 ;
-		len < 126 ? len : len > 125 && len <= 0xFFFF ? packet.writeUInt16BE( len, 2 ) :  packet.writeDoubleBE( len, 2)  ;
-		len < 126 ?  packet.write(data, 2, len) : len > 125 && len <= 0xFFFF ? packet.write( data, 4, len) : packet.write( data, 10 , len ) ;
-	    return packet;
+	    len < 126 ?  this.packet = Buffer( 2 + len ) : len > 125 && len <= 0xFFFF ? this.packet = Buffer( 2 + 2 + len ) :  this.packet = Buffer( 2 + 8 + len ) ;
+	    this.packet.writeUInt16BE( header.readUInt16BE( 0 ), 0 );
+		len < 126 ?  this.packet[1] = this.packet[1] | len : len > 125 && len <= 0xFFFF ? this.packet[1] = this.packet[1] | 126 : this.packet[1] = this.packet[1] | 127 ;
+		len < 126 ? len : len > 125 && len <= 0xFFFF ? this.packet.writeUInt16BE( len, 2 ) :  this.packet.writeDoubleBE( len, 2)  ;
+		len < 126 ?  this.packet.write(data, 2, len) : len > 125 && len <= 0xFFFF ? this.packet.write( data, 4, len) : this.packet.write( data, 10 , len ) ;
+	    return this.packet;
 	   }
 	 },
      
@@ -370,5 +502,4 @@ exports.ws = {
 	 pong: function(){
 	     return this.createHeader(true, 0x0A, false);
 	 },
-
-}//end ws
+ }//end ws
