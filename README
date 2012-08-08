@@ -1,3 +1,9 @@
+update
+ 1) Добавлена возможность использовать сжатые данные.
+ 2) Сервер зашешен от падени при помощи domain
+
+[ ------------------------------------------------------------------------------------------]
+
 Модуль dhttp это API (http, https и WebSocket) сервера для node.js
 Плюс встроеный шаблонизатор j2h с набором внутренних переменных 
 для обработки динамических шаблонов а так же отдачи статики( Статических шаблонов, Картинок, иконок и т.д ) . 
@@ -32,7 +38,9 @@ var config = {
  noRun: ['node', 'admin.js', 'j2h/*', 'test/*', 'dhttp.js', 'server.js'],
  //character set - Кодировка
  charset: 'utf8',
- //WebSockets config
+//encoding data gzip or deflate automatic
+ encode: true,
+//WebSockets config
  wsconfig: { proto: 'chat' },
 }
 
@@ -79,7 +87,7 @@ var on = dhttp.createServer(config, main, function( query, path, req, res, app )
 	  } 
      }	
     });
-     res.on('close', function(){
+     res.on('end', function(){
        console.log('socket index '+ sockets.indexOf( res ) +' close');
 	   sockets.splice( sockets.indexOf( res ), 1 );
      });
@@ -115,7 +123,7 @@ console.log( on ? 'server:8090': 'error');
 $get - url query string - разобранная строка запроса
 $var - global variables in template  - переменные видны во всем шаблоне
 $cookie - cookies - разобранный набор печенек
-$header - 
+$header - req.headers - заголовки запроса
 $setHeader - variables to set http headers - принипает загаловки http
 $console - function console.log - 
 $() - function echo - Функция вывода контента 
@@ -125,7 +133,7 @@ $() - function echo - Функция вывода контента
 <meta http-equiv="content-type" content="text/html; charset=utf-8" >
 <script language="javascript" src="jquery-1.6.2.js"></script>
 
-<!-- Работа с сервером через WS и Ajax-->
+<!-- Работа с сервером WS -->
 <script language="javascript">
 $(document).ready(function(){
  if(!window.WebSocket)alert('don"WebSocket');
@@ -150,6 +158,7 @@ $(document).ready(function(){
  }); 
 });
  
+<!-- Работа с сервером AJAX -->
 $(document).ready(function(){
  $('#a').click(function(){
   $.ajax({
@@ -182,7 +191,7 @@ $(document).ready(function(){
      Вывод контента локальная переменная вставки + глобальная переменная шаблона
 -->
 <p><? var i = 'runing with dhttp node.js module'; 
-      $($var.i +' '+ i)
+      $( i +' '+ $var.i )
    ?>
 </p>
 
@@ -192,7 +201,7 @@ $(document).ready(function(){
 <p>GET Variables <?$($get.user != undefined ? $get.user : '')?></p>
 
 <!-- print user param - Вывод параметра из пользовательского обьекта переданного в шаблон -->
-<p>User Variables <?$(path)?></p>
+<p>User Variables <?$(test)?></p>
 
 <!-- print cookies - Вывод Куки -->
 <p>Cookie Variables <?$($cookie.user != undefined ? $cookie.user : '')?></p>
