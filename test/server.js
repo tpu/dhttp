@@ -1,5 +1,10 @@
 var dhttp = require('./dhttp').dhttp;
 var ws = require('./dhttp').ws
+var util = require('util');
+var fs = require('fs');
+var http = require('http');
+var zlib = require('zlib');
+
 
 //server configuration - конфиг сервера
 var config = {
@@ -21,6 +26,8 @@ var config = {
  noRun: ['node', 'admin.js', 'j2h/*', 'test/*', 'dhttp.js', 'server.js'],
  //character set - Кодировка
  charset: 'utf8',
+ //encode data
+ encode: true,
  //WebSockets config
  wsconfig: { proto: 'chat' },
 }
@@ -33,8 +40,8 @@ var sockets = [];
  
 var on = dhttp.createServer(config, main, function( query, path, req, res, app ){  
 
-//console.log( util.inspect(this) )
- //AJAX
+//console.log( req.headers );
+//AJAX
    app.get( /dhttp/i, 'q',  function(){
 	  res.writeHead( 200 );
 	  res.end( JSON.stringify( { hello: ' hello dhttp server'} ) );
@@ -44,13 +51,13 @@ var on = dhttp.createServer(config, main, function( query, path, req, res, app )
     app.get( /^\/ws$/i, 'p', function(){
 	 sockets.push( res );
 	 setInterval(function(){
-	    res.write( ws.ping() );
-	 }, 30000);
+		res.write( ws.ping() );
+	 }, 3000);
  
-   res.on('data', function(mess){
+  res.on('data', function(mess){
 	if( ws.getDataType( mess )  == 10 ){
 	    console.log( 'pong ответ от ' + res.remoteAddress );}
-        if( ws.getDataType( mess )  == 9 ){
+    if( ws.getDataType( mess )  == 9 ){
 	    console.log( 'ping запрос от ' + res.remoteAddress );
         res.write( ws.pong() );
 	}
@@ -60,21 +67,23 @@ var on = dhttp.createServer(config, main, function( query, path, req, res, app )
 	  } 
      }	
     });
-     res.on('close', function(){
-       console.log('socket index '+ sockets.indexOf( res ) +' close');
-	   sockets.splice( sockets.indexOf( res ), 1 );
-     });
-   });
+    res.on('end', function(){
+      console.log('socket index '+ sockets.indexOf( res ) +' close');
+	  sockets.splice( sockets.indexOf( res ), 1 );
+    });
+  });
 
 //write file
-    app.get( /tee$/, 'p',  function(){
+    app.get( /test\//, 'p',  function(){
 	  	 app.write('c:/node/Seo/test.txt' )
     });   
 
 //response html, template, js, css, binary 
-    app.get( /^\//, 'p',  function(){
-	     app.write( );
-    } );	
+   app.get(/\//, 'p', function(){
+      app.write();
+   })
+   
+
 });
 
 console.log( on ? 'server:8090': 'error');
