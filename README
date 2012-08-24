@@ -1,6 +1,8 @@
 update
- 1) Добавлена возможность использовать сжатые данные.
+ 1) Добавлена возможность использовать сжатие данных gzip, deflate.
  2) Сервер зашешен от падени при помощи domain
+ 3) Поддержка сессий
+ 4) HTTP/1.1 Кеширование.
 
 [ ------------------------------------------------------------------------------------------]
 
@@ -16,7 +18,7 @@ update
 //Подключаем модуль.
 
 var dhttp = require('./dhttp').dhttp;
-var ws = require('./dhttp').ws
+var fs = require('fs');
 
 //server configuration - конфиг сервера
 var config = {
@@ -24,87 +26,87 @@ var config = {
  type: 'http', 
  //https configuration - Опции TLS(SSL)
  https: {key: '/var/node/cert/nodejskey.pem', cert: '/var/node/cert/nodejscert.pem'},
- //listening port - Порт
- port:  8090,
  //root directory - Корневая директория без завершающего слеша
  root: 'c:/node/Seo',
  //index file - Имя файла который будет обработан если в URL передана только директория и/или директория и параметры
  index : 'index.htm',
  //error file - Файл будет обработан при 404 ошибке
- errFile:'err.htm',
+ errFile:'static/err.htm',
  //show error message[ true || false] - отображать или нет ошибки в шаблоне
  showErr: true,
  //lock files - заблокированые файлы при их запросе будет сгенерирована 404 ошибка
- noRun: ['node', 'admin.js', 'j2h/*', 'test/*', 'dhttp.js', 'server.js'],
+ noRun: [ 'j2h/*', 'dhttp.js', 'sessions/*', 'server.js'],
  //character set - Кодировка
  charset: 'utf8',
-//encoding data gzip or deflate automatic
+ //encode data gzip, deflate
  encode: true,
-//WebSockets config
- wsconfig: { proto: 'chat' },
 }
 
-var main = {
-  sesion: 0,
-  test: 0,
-}
-var sockets = []; 
+//global vareables
+  var main = {
+    test: "DHTTP",
+    wssess: 0,
+  }
+ var sockets = []; 
+ 
+ dhttp.createServer(config, main, function( query, path, req, res, app ){  
 
-//Функция создания сервера
-//параметры:
-//( Обьект конфигурации, Пользовательский обьект для передачи в шаблон, КаллБэк функция обработки запросов  )
-//параметры КаллБэк:
-//( query - разобраная строка запроса, path - путь в запросе, Обьект request, Обьект Response, Служебный обьект)
-var on = dhttp.createServer(config, main, function( query, path, req, res, app ){  
-
-//app.get( find, type[path or query], anonymous function ) 
-//app.write( path to file or empty(automatic) )
-
-//AJAX
+ //AJAX
    app.get( /dhttp/i, 'q',  function(){
-	  res.writeHead( 200 );
-	  res.end( JSON.stringify( { hello: ' hello dhttp server'} ) );
+	   res.writeHead( 200 );
+	   res.end( JSON.stringify( { hello: ' hello dhttp server'} ) );
     } );
 
-//WebSockets
-    app.get( /^\/ws$/i, 'p', function(){
-	 sockets.push( res );
-	 setInterval(function(){
-	    res.write( ws.ping() );
-	 }, 30000);
- 
-   res.on('data', function(mess){
-	if( ws.getDataType( mess )  == 10 ){
-	    console.log( 'pong ответ от ' + res.remoteAddress );}
-        if( ws.getDataType( mess )  == 9 ){
-	    console.log( 'ping запрос от ' + res.remoteAddress );
-        res.write( ws.pong() );
+//automatic write html static, template, js, css, binary and cache them on 180 seconds/
+    app.get( /\/static\//, 'p', function(){
+       app.cache( function(){
+	     app.write();
+	   }, 180 );
+    } );
+	
+//get session or set session on 60 seconds. 
+    app.get( /^\//, 'p', function(){
+	if( app.getSession(  ) && app.getSession(  ).user == 'admin' ){
+			 app.write( );
 	}
-	if(ws.getDataType( mess ) == 1 ){
-	  for( var i = 0; i < sockets.length; i++ ){
-	   	                        \\( data, fin, opcode, masked )            
-              sockets[i].write( ws.addData( ws.getData(mess), true, 1, false) )
-	  } 
-     }	
-    });
-     res.on('end', function(){
-       console.log('socket index '+ sockets.indexOf( res ) +' close');
-	   sockets.splice( sockets.indexOf( res ), 1 );
-     });
-   });
+        else{ 
+	   app.setSession( { user: 'admin' }, function( err ){
+	     if( err ) console.log( err  );
+	       app.write( 'c:/node/Seo/static/login.htm'  ); 
+           }, 60 );		
+	} 
+    } );
+ 
+ } ).wsServer( 'chat', function( req, sock, ws ){
 
-//write file
-    app.get( /test$/, 'p',  function(){
-        app.write('c:/node/Seo/test.txt' )
-    });   
+//WebSocket      
+    sockets.push( sock );
+	setInterval(function(){
+	    sock.write( ws.ping() );
+	}, 180000);
+ 
+    sock.on('data', function(mess){ 
+	  if( ws.getDataType( mess )  == 10 ){
+	     console.log( 'pong ответ от ' + sock.remoteAddress );}
+      if( ws.getDataType( mess )  == 9 ){
+	     console.log( 'ping запрос от ' + sock.remoteAddress );
+         sock.write( ws.pong() );
+	  }
+	  if(ws.getDataType( mess ) == 1 ){
+	   for( var i = 0; i < sockets.length; i++ ){
+	     	sockets[i].write( ws.addData( ws.getData(mess), true, 1, false) )
+	   } 
+      }	
+    } );
+    sock.on('end', function(){
+       console.log('socket index '+ sockets.indexOf( sock ) +' close');
+	   sockets.splice( sockets.indexOf( sock ), 1 );
+    } );
+ 
+ } ).listen( 8090 );
+ 
 
-//response html, template, js, css, binary 
-    app.get( /^\//, 'p',  function(){
-	     app.write( );
-    } );	
-});
-
-console.log( on ? 'server:8090': 'error');
+ console.log( 'Server listen 8090' );
 
 [ --------------------------------------------------------------------- ]
 Встроеный шаблонизатор
