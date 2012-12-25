@@ -89,224 +89,223 @@ var events = require('events').EventEmitter;
      context.$var = {};
      context.$header = req.headers;
      context.$setHeader = {};
-	 context.$console = console.log;
+     context.$console = console.log;
 	 
-	 try{
+      try{
         if( file ){
-		    if( isBinary( file ) ){
-			    context.$setHeader['content-type'] = getMime( file );
-			    res.writeHead( httpCode.ok, context.$setHeader );
-			    fs.createReadStream( file ).pipe( res );
-                   delete context; return;
-			  }
-			  else{
-			    j2h.init( file );
-	            j2h.run(config.showErr != undefined ? config.showErr : true, context, function( err, data ){
-                  if( err ) throw err;  
-					if( config.encode ){ 
-				       if( req.headers['accept-encoding']  && req.headers['accept-encoding'].indexOf( 'gzip' ) >= 0 ){
-						context.$setHeader['content-encoding'] = 'gzip'; 
-					    context.$setHeader['content-type'] = getMime( file );
-					      res.writeHead( httpCode.ok, context.$setHeader);
-						   zlib.gzip(data, function(err, gdata){
-				            if( err ) throw err;
-							 res.end( gdata, config.charset ? config.charset : 'utf8' );
-                           }); 
-						  delete context; return; 
+	 if( isBinary( file ) ){
+	   context.$setHeader['content-type'] = getMime( file );
+	   res.writeHead( httpCode.ok, context.$setHeader );
+	   fs.createReadStream( file ).pipe( res );
+             delete context; return;
+	  }
+	  else{
+	    j2h.init( file );
+	    j2h.run(config.showErr != undefined ? config.showErr : true, context, function( err, data ){
+             if( err ) throw err;  
+	      if( config.encode ){ 
+	       if( req.headers['accept-encoding']  && req.headers['accept-encoding'].indexOf( 'gzip' ) >= 0 ){
+		context.$setHeader['content-encoding'] = 'gzip'; 
+		context.$setHeader['content-type'] = getMime( file );
+		res.writeHead( httpCode.ok, context.$setHeader);
+		zlib.gzip(data, function(err, gdata){
+		 if( err ) throw err;
+		   res.end( gdata, config.charset ? config.charset : 'utf8' );
+                 }); 
+		delete context; return; 
 						}
-					   if( req.headers['accept-encoding'] && req.headers['accept-encoding'].indexOf( 'deflate' ) >= 0 ){
-					    context.$setHeader['content-encoding'] = 'deflate'; 
-					    context.$setHeader['content-type'] = getMime( file );
-					     res.writeHead( httpCode.ok, context.$setHeader);
-						  zlib.deflate(data, function(err, gdata){
-				           if( err ) throw err;
-						    res.end( gdata, config.charset ? config.charset : 'utf8' );
-                          });
-					      delete context; return;
-						}
-					} 
-					context.$setHeader['content-type'] = getMime( file );
-					res.writeHead( httpCode.ok, context.$setHeader );
-					res.end( data, config.charset ? config.charset : 'utf8'  );  
-					    delete context; return; 
+		 if( req.headers['accept-encoding'] && req.headers['accept-encoding'].indexOf( 'deflate' ) >= 0 ){
+		  context.$setHeader['content-encoding'] = 'deflate'; 
+		  context.$setHeader['content-type'] = getMime( file );
+		  res.writeHead( httpCode.ok, context.$setHeader);
+		  zlib.deflate(data, function(err, gdata){
+		   if( err ) throw err;
+		    res.end( gdata, config.charset ? config.charset : 'utf8' );
+                  });
+		 delete context; return;
+		 }
+		} 
+		context.$setHeader['content-type'] = getMime( file );
+		res.writeHead( httpCode.ok, context.$setHeader );
+		res.end( data, config.charset ? config.charset : 'utf8'  );  
+		delete context; return; 
                 });			 
-			 }	
-        }
-	 }catch( e ){
-		  if( res.writable ){
-	        res.writeHead( httpCode.ie );
-            res.end( '500 Internal Server Error' )
+	    }	
           }
-            console.log( e ); return;
+	 }catch( e ){
+	  if( res.writable ){
+	   res.writeHead( httpCode.ie );
+           res.end( '500 Internal Server Error' )
+          }
+           console.log( e ); return;
 	 }
    
    //find request url on the server 
      fs.exists(config.root+url.parse(req.url).pathname, function( exist ){
 	//request url not found
         if(!exist || noRunFiles(config.root, config.noRun, config.root+url.parse(req.url).pathname )){
-	      if(config.errFile != undefined){//send error file 	  
-              j2h.init(config.root+'/'+config.errFile);
-		      j2h.run(config.showErr != undefined ? config.showErr : true, context, function(err,data){
-                  if( err ) throw err;
-					if( config.encode ){ 
-				       if( req.headers['accept-encoding'] && req.headers['accept-encoding'].indexOf( 'gzip' ) >= 0 ){
-						context.$setHeader['content-encoding'] = 'gzip';
-					    context.$setHeader['content-type'] = getMime( config.root+ '/' + config.errFile );
-					      res.writeHead( httpCode.ok, context.$setHeader);
-						   zlib.gzip(data, function(err, gdata){
-				             if( err ) throw err;
-							 res.end( gdata, config.charset ? config.charset : 'utf8' );
-                           });
-						  delete context; return; 
+	 if(config.errFile != undefined){//send error file 	  
+          j2h.init(config.root+'/'+config.errFile);
+          j2h.run(config.showErr != undefined ? config.showErr : true, context, function(err,data){
+           if( err ) throw err;
+	  if( config.encode ){ 
+	   if( req.headers['accept-encoding'] && req.headers['accept-encoding'].indexOf( 'gzip' ) >= 0 ){
+	    context.$setHeader['content-encoding'] = 'gzip';
+	    context.$setHeader['content-type'] = getMime( config.root+ '/' + config.errFile );
+	    res.writeHead( httpCode.ok, context.$setHeader);
+	    zlib.gzip(data, function(err, gdata){
+	     if( err ) throw err;
+	     res.end( gdata, config.charset ? config.charset : 'utf8' );
+            });
+	    delete context; return; 
+	   }  
+	   if( req.headers['accept-encoding'] && req.headers['accept-encoding'].indexOf( 'deflate' ) >= 0 ){
+	    context.$setHeader['content-encoding'] = 'deflate';
+	    context.$setHeader['content-type'] = getMime( config.root+ '/' + config.errFile );
+	    res.writeHead( httpCode.ok, context.$setHeader);
+	    zlib.deflate(data, function(err, gdata){
+	     if( err ) throw err;
+	     res.end( gdata, config.charset ? config.charset : 'utf8' );
+            });
+	     delete context; return;
+	   }
+	}
+	   context.$setHeader['content-type'] = getMime( config.root+ '/' + config.errFile );
+	   res.writeHead( httpCode.ok, context.$setHeader);
+	   res.end( data, config.charset ? config.charset : 'utf8'  );  
+	    delete context; return; 
+	   });
+	}
+	else{//send 404 not found
+	  res.writeHead( httpCode.nf );
+	  res.end();
+           delete context; return;
+         } 
+	
+	}
+	else{//request url is found
+	 fs.stat(config.root+url.parse(req.url).pathname, function(err, stats){
+          if( err ) throw err;
+         if( stats.isDirectory() ){
+	  if( fs.existsSync( config.root + url.parse(req.url).pathname + config.index ) ){
+	   if( !isBinary(config.root + url.parse(req.url).pathname + config.index ) ){
+	    j2h.init( config.root+url.parse(req.url).pathname + config.index );
+	    j2h.run( config.showErr != undefined ? config.showErr : true, context, function( err, data ){
+	     if( err ) throw err;
+	   if( config.encode ){
+	    if( req.headers['accept-encoding'] && req.headers['accept-encoding'].indexOf( 'gzip' ) >= 0 ){
+	     context.$setHeader['Content-Encoding'] = 'gzip';
+	     context.$setHeader['Content-Type'] = getMime(config.root+url.parse(req.url).pathname + config.index);
+	     res.writeHead( httpCode.ok, context.$setHeader );
+	     zlib.gzip(data, function(err, gdata){
+	      if( err ) throw err;
+	      res.socket.setNoDelay( true );
+    	      res.end( gdata, config.charset ? config.charset : 'utf8' );
+             });
+	    delete context; return; 
 						}  
-					   if( req.headers['accept-encoding'] && req.headers['accept-encoding'].indexOf( 'deflate' ) >= 0 ){
-					    context.$setHeader['content-encoding'] = 'deflate';
-					    context.$setHeader['content-type'] = getMime( config.root+ '/' + config.errFile );
-					     res.writeHead( httpCode.ok, context.$setHeader);
-						   zlib.deflate(data, function(err, gdata){
-				             if( err ) throw err;
-						     res.end( gdata, config.charset ? config.charset : 'utf8' );
-                           });
-					      delete context; return;
-						}
-					}
-					context.$setHeader['content-type'] = getMime( config.root+ '/' + config.errFile );
-					res.writeHead( httpCode.ok, context.$setHeader);
-					res.end( data, config.charset ? config.charset : 'utf8'  );  
-					    delete context; return; 
-		      });
-	        }
-	        else{//send 404 not found
-		        res.writeHead( httpCode.nf );
-		        res.end();
-                 delete context; return;
-		    } 
+	    if( req.headers['accept-encoding'] && req.headers['accept-encoding'].indexOf( 'deflate' ) >= 0){
+	     context.$setHeader['content-encoding'] = 'deflate';
+	     context.$setHeader['content-type'] = getMime(config.root+url.parse(req.url).pathname + config.index);
+	     res.writeHead( httpCode.ok, context.$setHeader);
+	     zlib.deflate(data, function(err, gdata){
+	      if( err ) throw err;
+	      res.end( gdata, config.charset ? config.charset : 'utf8' );
+             });
+	     delete context; return;
 	    }
-	      //request url is found
-            else{
-	        fs.stat(config.root+url.parse(req.url).pathname, function(err, stats){
-            if( err ) throw err;
-			 if( stats.isDirectory() ){
-		      if( fs.existsSync( config.root + url.parse(req.url).pathname + config.index ) ){
-		       if( !isBinary(config.root + url.parse(req.url).pathname + config.index ) ){
-				 j2h.init( config.root+url.parse(req.url).pathname + config.index );
-		         j2h.run( config.showErr != undefined ? config.showErr : true, context, function( err, data ){
-		          if( err ) throw err;
-					if( config.encode ){
-				       if( req.headers['accept-encoding'] && req.headers['accept-encoding'].indexOf( 'gzip' ) >= 0 ){
-						context.$setHeader['Content-Encoding'] = 'gzip';
-					    context.$setHeader['Content-Type'] = getMime(config.root+url.parse(req.url).pathname + config.index);
-					      res.writeHead( httpCode.ok, context.$setHeader );
-						  zlib.gzip(data, function(err, gdata){
-				             if( err ) throw err;
-							 res.socket.setNoDelay( true );
-    						 res.end( gdata, config.charset ? config.charset : 'utf8' );
-                             
-						   });
-						  delete context; return; 
-						}  
-					   if( req.headers['accept-encoding'] && req.headers['accept-encoding'].indexOf( 'deflate' ) >= 0){
-					    context.$setHeader['content-encoding'] = 'deflate';
-					    context.$setHeader['content-type'] = getMime(config.root+url.parse(req.url).pathname + config.index);
-					     res.writeHead( httpCode.ok, context.$setHeader);
-						  zlib.deflate(data, function(err, gdata){
-				             if( err ) throw err;
-							 res.end( gdata, config.charset ? config.charset : 'utf8' );
-                          });
-					      delete context; return;
-						}
-					}
-					context.$setHeader['content-type'] = getMime(config.root+url.parse(req.url).pathname + config.index);
-					res.writeHead( httpCode.ok, context.$setHeader );
-					res.socket.setNoDelay( false );
-					res.end( data, config.charset ? config.charset : 'utf8'  );      
-						 delete context; return; 
-				});
+	}
+	    context.$setHeader['content-type'] = getMime(config.root+url.parse(req.url).pathname + config.index);
+	    res.writeHead( httpCode.ok, context.$setHeader );
+	    res.socket.setNoDelay( false );
+	    res.end( data, config.charset ? config.charset : 'utf8'  );      
+	     delete context; return; 
+	});
              }//end if not Binary index file
             }//end if exists
             else{
-                 if(config.errFile != undefined){//send error file 	  
-     				j2h.init(config.root+'/'+config.errFile);
-		            j2h.run(config.showErr != undefined ? config.showErr : true, context, function(err,data){
-		             if( err ) throw err;
-					  if( config.encode ){ 
-				        if( req.headers['accept-encoding'] && req.headers['accept-encoding'].indexOf( 'gzip' ) >= 0 ){
-						 context.$setHeader['content-encoding'] = 'gzip';
-					     context.$setHeader['content-type'] = getMime( config.root+ '/' + config.errFile );
-					      res.writeHead( httpCode.ok, context.$setHeader);
-						    zlib.gzip(data, function(err, gdata){
-				             if( err ) throw err;
-							 res.end( gdata, config.charset ? config.charset : 'utf8' );
-                            });
-						  delete context; return; 
-						}  
-					   if( req.headers['accept-encoding'] && req.headers['accept-encoding'].indexOf( 'deflate' ) >= 0 ){
-					    context.$setHeader['content-encoding'] = 'deflate';
-					    context.$setHeader['content-type'] = getMime( config.root+ '/' + config.errFile );
-					     res.writeHead( httpCode.ok, context.$setHeader);
-						  zlib.deflate(data, function(err, gdata){
-				             if( err ) throw err;
-							 res.end( gdata, config.charset ? config.charset : 'utf8' );
-                          });
-					      delete context; return;
-						}
-					}
-					context.$setHeader['content-type'] = getMime( config.root+ '/' + config.errFile );
-					res.writeHead( httpCode.ok, context.$setHeader);
-					res.end( data, config.charset ? config.charset : 'utf8'  );  
-					    delete context; return; 
+             if(config.errFile != undefined){//send error file 	  
+     	      j2h.init(config.root+'/'+config.errFile);
+	      j2h.run(config.showErr != undefined ? config.showErr : true, context, function(err,data){
+	       if( err ) throw err;
+	      if( config.encode ){ 
+	       if( req.headers['accept-encoding'] && req.headers['accept-encoding'].indexOf( 'gzip' ) >= 0 ){
+	        context.$setHeader['content-encoding'] = 'gzip';
+	        context.$setHeader['content-type'] = getMime( config.root+ '/' + config.errFile );
+	        res.writeHead( httpCode.ok, context.$setHeader);
+	        zlib.gzip(data, function(err, gdata){
+	         if( err ) throw err;
+		 res.end( gdata, config.charset ? config.charset : 'utf8' );
+                });
+		delete context; return; 
+	       }  
+	       if( req.headers['accept-encoding'] && req.headers['accept-encoding'].indexOf( 'deflate' ) >= 0 ){
+	        context.$setHeader['content-encoding'] = 'deflate';
+	        context.$setHeader['content-type'] = getMime( config.root+ '/' + config.errFile );
+		res.writeHead( httpCode.ok, context.$setHeader);
+		zlib.deflate(data, function(err, gdata){
+		 if( err ) throw err;
+		 res.end( gdata, config.charset ? config.charset : 'utf8' );
+                });
+		delete context; return;
+	        }
+	       }
+		context.$setHeader['content-type'] = getMime( config.root+ '/' + config.errFile );
+		res.writeHead( httpCode.ok, context.$setHeader);
+		res.end( data, config.charset ? config.charset : 'utf8'  );  
+		delete context; return; 
 		            
-					});
-	             }
-	             else{//send 404 not found
-	               process.nextTick(function(){ 
-					res.writeHead( httpCode.nf );
-		            res.end();
-                         delete context; return;
-					});	 
-	             }
-                }//end else exist
-	        }//end if isDir
+	      });
+	     }
+	     else{//send 404 not found
+	      process.nextTick(function(){ 
+	       res.writeHead( httpCode.nf );
+	       res.end();
+               delete context; return;
+	      });	 
+	     }
+            }//end else exist
+	    }//end if isDir
             if( stats.isFile()){
-                if(!isBinary(config.root + url.parse(req.url).pathname)){
-                   j2h.init(config.root+url.parse(req.url).pathname );
-		           j2h.run(config.showErr != undefined ? config.showErr : true, context, function(err,data){
-                    if( err ) throw err;
-					 if( config.encode ){ 
-				       if( req.headers['accept-encoding'] && req.headers['accept-encoding'].indexOf( 'gzip' ) >= 0 ){
-						 context.$setHeader['content-encoding'] = 'gzip';
-					     context.$setHeader['content-type'] = getMime( config.root+url.parse(req.url).pathname );
-					      res.writeHead( httpCode.ok, context.$setHeader);
-						   zlib.gzip(data, function(err, gdata){
-				             if( err ) throw err;
-							 res.end( gdata, config.charset ? config.charset : 'utf8' );
-                           });
-						  delete context; return; 
-						}  
-					   if( req.headers['accept-encoding'] && req.headers['accept-encoding'].indexOf( 'deflate' )  >= 0 ){
-					    context.$setHeader['content-encoding'] = 'deflate';
-					    context.$setHeader['content-type'] = getMime( config.root+url.parse(req.url).pathname );
-					     res.writeHead( httpCode.ok, context.$setHeader);
-						  zlib.deflate(data, function(err, gdata){
-				             if( err ) throw err;
-							 res.end( gdata , config.charset ? config.charset : 'utf8'  );
-                          });
-					      delete context; return;
-						}
-					 }
-					 context.$setHeader['content-type'] = getMime( config.root+url.parse(req.url).pathname );
-					 res.writeHead( httpCode.ok, context.$setHeader);
-					 res.end( data, config.charset ? config.charset : 'utf8' );  
-					    delete context; return; 
-                  });
+             if(!isBinary(config.root + url.parse(req.url).pathname)){
+              j2h.init(config.root+url.parse(req.url).pathname );
+	      j2h.run(config.showErr != undefined ? config.showErr : true, context, function(err,data){
+               if( err ) throw err;
+	      if( config.encode ){ 
+	       if( req.headers['accept-encoding'] && req.headers['accept-encoding'].indexOf( 'gzip' ) >= 0 ){
+		context.$setHeader['content-encoding'] = 'gzip';
+		context.$setHeader['content-type'] = getMime( config.root+url.parse(req.url).pathname );
+		res.writeHead( httpCode.ok, context.$setHeader);
+		zlib.gzip(data, function(err, gdata){
+		 if( err ) throw err;
+		 res.end( gdata, config.charset ? config.charset : 'utf8' );
+                });
+		 delete context; return; 
+	       }  
+	       if( req.headers['accept-encoding'] && req.headers['accept-encoding'].indexOf( 'deflate' )  >= 0 ){
+		 context.$setHeader['content-encoding'] = 'deflate';
+		 context.$setHeader['content-type'] = getMime( config.root+url.parse(req.url).pathname );
+		 res.writeHead( httpCode.ok, context.$setHeader);
+		 zlib.deflate(data, function(err, gdata){
+		  if( err ) throw err;
+		  res.end( gdata , config.charset ? config.charset : 'utf8'  );
+                 });
+		  delete context; return;
+		}
+	       }
+		  context.$setHeader['content-type'] = getMime( config.root+url.parse(req.url).pathname );
+		  res.writeHead( httpCode.ok, context.$setHeader);
+		  res.end( data, config.charset ? config.charset : 'utf8' );  
+		   delete context; return; 
+                 });
                 }//end if not isBinary
-            if(isBinary(config.root + url.parse(req.url).pathname)){
+             if(isBinary(config.root + url.parse(req.url).pathname)){
               process.nextTick( function(){ 
-			    context.$setHeader['content-type'] = getMime( config.root+url.parse(req.url).pathname );
+		context.$setHeader['content-type'] = getMime( config.root+url.parse(req.url).pathname );
                 res.writeHead(httpCode.ok, context.$setHeader);
                 fs.createReadStream(config.root + url.parse(req.url).pathname).pipe( res );
-                       delete context; return;
-			  });	   
+                 delete context; return;
+	      });	   
             }//end if isBinary
           }//end if isFile
 	   });//end fs stats
@@ -317,11 +316,11 @@ var events = require('events').EventEmitter;
 //HTTP Server helper |--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|  
  var httpapp = function( config, context, request, response, query, path ){
     this.config = config;
-	this.context =context;
-	this.request = request;
-	this.response = response;
-	this.query = query;
-	this.path = path;
+    this.context =context;
+    this.request = request;
+    this.response = response;
+    this.query = query;
+    this.path = path;
     this.success = false;
   }
     httpapp.prototype = { 
@@ -504,9 +503,9 @@ var events = require('events').EventEmitter;
 	switch(config.type){
           case 'https': if(config.https == undefined) return false; 
             var sslopt = { 
-                                key: fs.readFileSync(config.https.key),
-                                cert: fs.readFileSync(config.https.cert),
-                               }
+                           key: fs.readFileSync(config.https.key),
+                           cert: fs.readFileSync(config.https.cert),
+                          }
                 objConcat(config.https, sslopt);
                 server = https.createServer(config.https); break;
           default: server = http.createServer(); break;
