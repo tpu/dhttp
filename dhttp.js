@@ -15,7 +15,7 @@ var events = require('events').EventEmitter;
   var mime = {
      html: 'text/html',
      htm:  'text/html',
-   	 txt:  'text/plain', 
+     txt:  'text/plain', 
      php:  'text/html',
      css:  'text/css',
      js:   'application/javascript',
@@ -26,9 +26,9 @@ var events = require('events').EventEmitter;
      bmp:  'image/bmp',
      swf:  'application/x-shokwave-flash',
      flv:  'application/x-shokwave-flash',
-	 ico:  'image/x-icon',
-	 zip: 'multipart/x-zip',
-	 rar: 'application/x-rar',
+     ico:  'image/x-icon',
+     zip: 'multipart/x-zip',
+     rar: 'application/x-rar',
  } 
 
  var binary = {
@@ -40,8 +40,8 @@ var events = require('events').EventEmitter;
      swf:  '.swf',
      flv:  '.flv',
      ico:  '.ico',
-	 zip: '.zip',
-	 rar: 'rar',
+     zip:  '.zip',
+     rar:  '.rar',
  }
  
  var httpCode = {
@@ -326,7 +326,7 @@ var events = require('events').EventEmitter;
   }
     httpapp.prototype = { 
        
-	    get: function( find, type, callback ){
+      get: function( find, type, callback ){
          if( this.success ) return;  
     	  if( type === 'q'  &&  this.query !== undefined ){
             for( key in this.query ){
@@ -340,41 +340,41 @@ var events = require('events').EventEmitter;
           }
         },	
        
-	    write: function( file ){
+       write: function( file ){
 		   file = file || false;
 		    render( this.config, this.context, this.request, this.response, file );
         },
 	   
-		setSession: function( object, callback, timeout ){
-		   timeout = timeout * 1000 ||  60 * 1000 ;
-			var sessionKey =  Math.random(  );
-			  this.response.setHeader( 'set-cookie', [ 'dhttpID=id'+sessionKey.toString( )] )
+	setSession: function( object, callback, timeout ){
+	    timeout = timeout * 1000 ||  60 * 1000 ;
+		var sessionKey =  Math.random(  );
+	          this.response.setHeader( 'set-cookie', [ 'dhttpID=id'+sessionKey.toString( )] )
 	          object.dhttpID = sessionKey
-		      object.timeout = new Date().getTime() + timeout;
-				fs.mkdir('./sessions', function(){
-				  fs.writeFile( './sessions/dhttp_id'+object.dhttpID, 'exports.session = (function(){ return ' + util.inspect( object ) + ' })()', function( err ){
-                    if( err ){ callback( err ); return; }	
-					 callback( );			
-		          } );
-				} );
- 	     },
+		  object.timeout = new Date().getTime() + timeout;
+		    fs.mkdir('./sessions', function(){
+		      fs.writeFile( './sessions/dhttp_id'+object.dhttpID, 'exports.session = (function(){ return ' + util.inspect( object ) + ' })()', function( err ){
+                        if( err ){ callback( err ); return; }	
+			  callback( );			
+		       } );
+		     } );
+ 	  },
 		
-		getSession: function(  ){	
-		   if( query.parse( this.request.headers.cookie, '; ').dhttpID !== undefined ){
-		     var sessionID = query.parse( this.request.headers.cookie, '; ').dhttpID;
+	 getSession: function(  ){	
+            if( query.parse( this.request.headers.cookie, '; ').dhttpID !== undefined ){
+	      var sessionID = query.parse( this.request.headers.cookie, '; ').dhttpID;
               try{
-			    var session = require( './sessions/dhttp_'+sessionID ).session;
+	        var session = require( './sessions/dhttp_'+sessionID ).session;
                  if( session.timeout < new Date().getTime() )
-				   { fs.unlinkSync(  './sessions/dhttp_'+sessionID ); return false; }
-			  }
-			  catch( e ){
-				return false;		     
-			 }		 
-		   }
-		   return session;
-	     },
+		    { fs.unlinkSync(  './sessions/dhttp_'+sessionID ); return false; }
+	          }
+	          catch( e ){
+		     return false;		     
+		  }		 
+	      }
+	       return session;
+	  },
 		 
-		cache: function( callback, timeout ){
+	  cache: function( callback, timeout ){
 	      timeout = timeout * 1000 || 60 * 1000 ;
 		   if( arrCache.indexOf( this.request.headers['if-none-match']  ) >= 0  ){
 		       this.response.writeHead( 304 ); this.response.end(); return;
@@ -383,7 +383,7 @@ var events = require('events').EventEmitter;
 			 var expires = new Date( ).getTime() +  timeout ;
 			 var etag = Math.random();
 			 this.response.setHeader( 'Cache-Control' , [ 'private, must-revalidate, max-age='+ timeout +', no-transform' ] );
-	         this.response.setHeader( 'Etag', [ etag ] );
+	                 this.response.setHeader( 'Etag', [ etag ] );
 			 this.response.setHeader( 'Expires' , [ new Date( expires ).toUTCString() ] );
 			 arrCache.push( etag.toString() );
 			  setTimeout(function(){
@@ -413,15 +413,17 @@ var events = require('events').EventEmitter;
 	
 	getDataLen: function( packet ){
 	    if( ( packet.readUInt8( 1 ) ^ 0x80 ) < 126 ) return ( packet.readUInt8( 1 ) ^ 0x80 ) ;
-        if( ( packet.readUInt8( 1 ) ^ 0x80 ) == 126 ) return packet.readUInt16BE( 2 );	
-        if( ( packet.readUInt8( 1 ) ^ 0x80 ) == 127 ) return packet.readDoubleBE( 2 );			
+            if( ( packet.readUInt8( 1 ) ^ 0x80 ) == 126 ) return packet.readUInt16BE( 2 );	
+            if( ( packet.readUInt8( 1 ) ^ 0x80 ) == 127 ) return packet.readDoubleBE( 2 );			
+	 return false;
 	},
 	
 	getMaskKey: function( packet ){
 	  var key = new Buffer(4);
-	  	if( ( packet.readUInt8( 1 ) ^ 0x80 ) < 126 ) {  for( var i = 0; i < 4; i++ ) { key[ i ] = packet.readUInt8( i + 2 ); }  return key; }
-        if( ( packet.readUInt8( 1 ) ^ 0x80 ) == 126 ) {  for( var i = 0; i < 4; i++ ) { key[ i ] = packet.readUInt8( i + 4 ); }  return key; }
-        if( ( packet.readUInt8( 1 ) ^ 0x80 ) == 127 ) {  for( var i = 0; i < 4; i++ ) { key[ i ] = packet.readUInt8( i + 10 ); }  return key; }
+	    if( ( packet.readUInt8( 1 ) ^ 0x80 ) < 126 ) {  for( var i = 0; i < 4; i++ ) { key[ i ] = packet.readUInt8( i + 2 ); }  return key; }
+            if( ( packet.readUInt8( 1 ) ^ 0x80 ) == 126 ) {  for( var i = 0; i < 4; i++ ) { key[ i ] = packet.readUInt8( i + 4 ); }  return key; }
+            if( ( packet.readUInt8( 1 ) ^ 0x80 ) == 127 ) {  for( var i = 0; i < 4; i++ ) { key[ i ] = packet.readUInt8( i + 10 ); }  return key; }
+	 return false;
 	},
 	
 	getData: function( packet ){
@@ -429,19 +431,19 @@ var events = require('events').EventEmitter;
 	  var index = 0;
 
 	    if( this.isMasked( packet )){ 
-		if( ( packet.readUInt8( 1 ) ^ 0x80 ) < 126 ) index = 6; 
-	    if( ( packet.readUInt8( 1 ) ^ 0x80 ) == 126 ) index = 8
-        if( ( packet.readUInt8( 1 ) ^ 0x80 ) == 127 ) index = 14;
+	     if( ( packet.readUInt8( 1 ) ^ 0x80 ) < 126 ) index = 6; 
+	     if( ( packet.readUInt8( 1 ) ^ 0x80 ) == 126 ) index = 8
+             if( ( packet.readUInt8( 1 ) ^ 0x80 ) == 127 ) index = 14;
 	    var key  = this.getMaskKey( packet );
 	    var text = new Buffer( len );
 	     for( var i = 0; i < len; i++ ){
 		     text[ i ] = packet[ i + index ] ^ key[ ( i % 4 ) ]; 
 		 }
-	  }else{
-		if(  packet.readUInt8( 1 ) < 126 ) index = 2; 
-	    if(  packet.readUInt8( 1 ) == 126 ) index = 4
-        if(  packet.readUInt8( 1 ) == 127 ) index = 10;
-        var text = packet.toString('utf8', index );
+	    }else{
+	     if(  packet.readUInt8( 1 ) < 126 ) index = 2; 
+	     if(  packet.readUInt8( 1 ) == 126 ) index = 4
+             if(  packet.readUInt8( 1 ) == 127 ) index = 10;
+            var text = packet.toString('utf8', index );
 	   }	  
 	 	
 	   return text.toString('utf8');; 
@@ -452,7 +454,7 @@ var events = require('events').EventEmitter;
 	   this.packet.writeUInt16BE( 0, 0 );
 	   fin ? this.packet[0] = 0x80 : this.packet[0]  ; 
 	   opcode > 0 ? this.packet[0] = this.packet[0] | opcode : this.packet[0];  
-       masked ? this.packet[1] =  0x80 : this.packet[1] ;	   
+           masked ? this.packet[1] =  0x80 : this.packet[1] ;	   
 	   return this.packet;
 	},
     
@@ -460,8 +462,8 @@ var events = require('events').EventEmitter;
 	  if( typeof data == 'string' ) 
 	   var len = Buffer.byteLength(data, 'utf8');
 	  else if( Buffer.isBuffer( data ) ){
-        var len = data.length;
-		opcode == 1 ? data = data.toString('utf8') : data = data.toString('binary');
+           var len = data.length;
+	   opcode == 1 ? data = data.toString('utf8') : data = data.toString('binary');
       }		
 	  else throw new Error('data type must be a [ string or Buffer ]'); 
 	   var header = this.createHeader( fin, opcode, masked );
@@ -484,7 +486,7 @@ var events = require('events').EventEmitter;
      ping: function(){
 	     return this.createHeader(true, 0x09, false);
 	 },	 
-	 pong: function(){
+     pong: function(){
 	     return this.createHeader(true, 0x0A, false);
 	 },
 	 
@@ -496,18 +498,18 @@ var events = require('events').EventEmitter;
     if( (config.root == undefined) || (config.index == undefined))
      { console.log('one or more configuration variables is not defined'); return false; }
        
-	process.chdir( config.root );
-    usrfnc.on( 'userFunction', callback);
+       process.chdir( config.root );
+       usrfnc.on( 'userFunction', callback);
 	
 	switch(config.type){
-      case 'https': if(config.https == undefined) return false; 
+          case 'https': if(config.https == undefined) return false; 
             var sslopt = { 
                                 key: fs.readFileSync(config.https.key),
                                 cert: fs.readFileSync(config.https.cert),
                                }
                 objConcat(config.https, sslopt);
                 server = https.createServer(config.https); break;
-      default: server = http.createServer(); break;
+          default: server = http.createServer(); break;
     }
    server.wsServer = wsServer;
    
